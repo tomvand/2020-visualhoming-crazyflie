@@ -2,6 +2,6 @@
 .project
 .settings/
 build/
-built-in.o
+*.o*
 
 
