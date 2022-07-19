@@ -1,43 +1,35 @@
-# The firmware uses the Kbuild build system. There are 'Kbuild' files in this
-# example that outlays what needs to be built. (check src/Kbuild).
-#
-# The firmware is configured using options in Kconfig files, the
-# values of these end up in the .config file in the firmware directory.
-#
-# By setting the OOT_CONFIG (it is '$(PWD)/oot-config' by default) environment
-# variable you can provide a custom configuration. It is important that you
-# enable the app-layer. See app-config in this directory for example.
+# Variables
+PYTHON ?= python3.8
 
-#
-# We want to execute the main Makefile for the firmware project,
-# it will handle the build for us.
-#
-CRAZYFLIE_BASE := /home/tom/code/cfbl/crazyflie-firmware
+CRAZYFLIE_BASE ?= /home/tom/code/cfbl/crazyflie-firmware
+CLOAD_CMDS ?= "-w radio://0/66/2M"
 
-#
-# We override the default OOT_CONFIG here, we could also name our config
-# to oot-config and that would be the default.
-#
-OOT_CONFIG := $(PWD)/app-config
+# Commands
 
-include $(CRAZYFLIE_BASE)/tools/make/oot.mk
+all: venv build
+.PHONY: all
 
-# CUSTOM MAKEFILE CODE #########################################################
-APP_NAME := $(shell basename $(CURDIR))
-
-tb:
-	rm -rf $(CRAZYFLIE_BASE)/apps/$(APP_NAME) || true
-	mkdir -p $(CRAZYFLIE_BASE)/apps/$(APP_NAME)
-	cp -rf . $(CRAZYFLIE_BASE)/apps/$(APP_NAME)
-	sed -i 's+^CRAZYFLIE_BASE.*+CRAZYFLIE_BASE := ../..+g' $(CRAZYFLIE_BASE)/apps/$(APP_NAME)/Makefile
-	bash -i -c "cd $(CRAZYFLIE_BASE) && tb make_app apps/$(APP_NAME)"
-	cp -rf $(CRAZYFLIE_BASE)/apps/$(APP_NAME)/build .
-.PHONY: tb
+build:
+	cd app && $(MAKE) CRAZYFLIE_BASE=$(CRAZYFLIE_BASE) 
+.PHONY: build
 
 upload:
-	CLOAD_CMDS="-w radio://0/66/2M" make cload
+	cd app && $(MAKE) CRAZYFLIE_BASE=$(CRAZYFLIE_BASE) CLOAD_CMDS=$(CLOAD_CMDS) cload
 .PHONY: upload
+
+clean:
+	cd app && $(MAKE) CRAZYFLIE_BASE=$(CRAZYFLIE_BASE) clean
+.PHONY: clean
 
 freeze:
 	pip freeze --local | grep -v "pkg-resources" > requirements.txt
 .PHONY: freeze
+
+
+# Targets
+
+venv:
+	rm -rf venv
+	virtualenv -p $(PYTHON) venv
+	bash -c "source venv/bin/activate && pip install -r requirements.txt"
+	touch venv
