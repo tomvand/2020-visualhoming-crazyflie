@@ -12,7 +12,7 @@
 # We want to execute the main Makefile for the firmware project,
 # it will handle the build for us.
 #
-CRAZYFLIE_BASE := ../..
+CRAZYFLIE_BASE := /home/tom/code/cfbl/crazyflie-firmware
 
 #
 # We override the default OOT_CONFIG here, we could also name our config
@@ -21,3 +21,15 @@ CRAZYFLIE_BASE := ../..
 OOT_CONFIG := $(PWD)/app-config
 
 include $(CRAZYFLIE_BASE)/tools/make/oot.mk
+
+# CUSTOM MAKEFILE CODE #########################################################
+APP_NAME := $(shell basename $(CURDIR))
+
+tb:
+	rm -rf $(CRAZYFLIE_BASE)/apps/$(APP_NAME) || true
+	mkdir -p $(CRAZYFLIE_BASE)/apps/$(APP_NAME)
+	cp -rf . $(CRAZYFLIE_BASE)/apps/$(APP_NAME)
+	sed -i 's+^CRAZYFLIE_BASE.*+CRAZYFLIE_BASE := ../..+g' $(CRAZYFLIE_BASE)/apps/$(APP_NAME)/Makefile
+	bash -i -c "cd $(CRAZYFLIE_BASE) && tb make_app apps/$(APP_NAME)"
+	cp -rf $(CRAZYFLIE_BASE)/apps/$(APP_NAME)/build .
+.PHONY: tb
