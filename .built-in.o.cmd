@@ -1,0 +1,1 @@
+cmd_/home/tom/research/2020-visualhoming/code-ext/crazyflie-app/built-in.o :=  arm-none-eabi-gcc --specs=nosys.specs --specs=nano.specs -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -nostdlib   -r -o /home/tom/research/2020-visualhoming/code-ext/crazyflie-app/built-in.o /home/tom/research/2020-visualhoming/code-ext/crazyflie-app/src/built-in.o
