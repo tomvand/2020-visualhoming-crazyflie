@@ -1,5 +1,5 @@
 PYTHON=python3.8
-ARM_NONE_EABI_GCC=/opt/gcc-arm-11.2-2022.02-x86_64-arm-none-eabi/bin
+ARM_NONE_EABI_BIN=/opt/gcc-arm-11.2-2022.02-x86_64-arm-none-eabi/bin
 
 CRAZYFLIE_BASE=/home/tom/code/cfbl/crazyflie-firmware
 CLOAD_CMDS="-w radio://0/66/2M"
