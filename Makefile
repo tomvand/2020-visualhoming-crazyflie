@@ -21,7 +21,7 @@ clean:
 .PHONY: clean
 
 freeze:
-	pip freeze --local | grep -v "pkg-resources" > requirements.txt
+	pip freeze --local | grep -v "pkg-resources" | grep -v "pkg_resources" > requirements.txt
 .PHONY: freeze
 
 
