@@ -33,3 +33,11 @@ tb:
 	bash -i -c "cd $(CRAZYFLIE_BASE) && tb make_app apps/$(APP_NAME)"
 	cp -rf $(CRAZYFLIE_BASE)/apps/$(APP_NAME)/build .
 .PHONY: tb
+
+upload:
+	CLOAD_CMDS="-w radio://0/66/2M" make cload
+.PHONY: upload
+
+freeze:
+	pip freeze --local | grep -v "pkg-resources" > requirements.txt
+.PHONY: freeze
