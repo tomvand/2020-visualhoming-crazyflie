@@ -1,8 +1,7 @@
 # Variables
-PYTHON ?= python3.8
 
-CRAZYFLIE_BASE ?= /home/tom/code/cfbl/crazyflie-firmware
-CLOAD_CMDS ?= "-w radio://0/66/2M"
+include config
+
 
 # Commands
 
