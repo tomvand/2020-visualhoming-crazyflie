@@ -9,6 +9,7 @@
 #define VISUALHOMING_COMMON_H__
 
 #include <stdbool.h>
+#include <inttypes.h>
 
 
 struct pos2f_t {
