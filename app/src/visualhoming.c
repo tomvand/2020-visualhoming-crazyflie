@@ -43,31 +43,15 @@
 #include "param.h"
 
 
-static int8_t start;
+static void app_init(void) {
 
-
-void appMain() {
-  while (!start) {
-    DEBUG_PRINT("Waiting for start command...\n");
-    vTaskDelay(M2T(1000));
-  }
-  DEBUG_PRINT("Taking off...\n");
-  crtpCommanderHighLevelTakeoff(1.0f, 2.0f);
-  vTaskDelay(M2T(2000));
-  DEBUG_PRINT("Hovering...\n");
-  crtpCommanderHighLevelGoTo(0, 0, 0, 0, 2.0, true);
-  vTaskDelay(M2T(2000));
-  DEBUG_PRINT("Landing...\n");
-  crtpCommanderHighLevelLand(0, 2.0);
-  vTaskDelay(M2T(2000));
-
-  while(1) {
-    DEBUG_PRINT("Landed!\n");
-    vTaskDelay(M2T(2000));
-  }
 }
 
 
-PARAM_GROUP_START(visualhoming)
-PARAM_ADD(PARAM_INT8, start, &start)
-PARAM_GROUP_STOP(visualhoming)
+void appMain() {
+  app_init();
+  while (1) {
+    vTaskDelay(M2T(1000));
+  }
+}
+

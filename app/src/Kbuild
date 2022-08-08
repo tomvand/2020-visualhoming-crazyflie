@@ -1,2 +1,3 @@
 obj-y += visualhoming.o
 obj-y += visualhoming_common.o
+obj-y += camera.o

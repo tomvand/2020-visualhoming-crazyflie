@@ -8,7 +8,7 @@ include config
 all: venv build
 .PHONY: all
 
-build:
+build: pprzlink
 	cd app && $(MAKE) CRAZYFLIE_BASE=$(CRAZYFLIE_BASE) 
 .PHONY: build
 

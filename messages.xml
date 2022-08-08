@@ -3304,10 +3304,6 @@
       <field name="msg" type="uint8[]"/>
     </message>
 
-    <message name="IMCU_DEBUG" id="115">
-      <field name="msg" type="uint8[]"/>
-    </message>
-
     <message name="IMCU_PAYLOAD" id="116">
       <field name="data" type="uint8[]"/>
     </message>
