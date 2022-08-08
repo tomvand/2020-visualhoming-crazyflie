@@ -32,19 +32,42 @@
 #include <stdbool.h>
 
 #include "app.h"
+#include "crtp_commander_high_level.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
 
-#define DEBUG_MODULE "HELLOWORLD"
+#define DEBUG_MODULE "VISUALHOMING"
 #include "debug.h"
+#include "log.h"
+#include "param.h"
+
+
+static int8_t start;
 
 
 void appMain() {
-  DEBUG_PRINT("Waiting for activation ...\n");
+  while (!start) {
+    DEBUG_PRINT("Waiting for start command...\n");
+    vTaskDelay(M2T(1000));
+  }
+  DEBUG_PRINT("Taking off...\n");
+  crtpCommanderHighLevelTakeoff(1.0f, 2.0f);
+  vTaskDelay(M2T(2000));
+  DEBUG_PRINT("Hovering...\n");
+  crtpCommanderHighLevelGoTo(0, 0, 0, 0, 2.0, true);
+  vTaskDelay(M2T(2000));
+  DEBUG_PRINT("Landing...\n");
+  crtpCommanderHighLevelLand(0, 2.0);
+  vTaskDelay(M2T(2000));
 
   while(1) {
+    DEBUG_PRINT("Landed!\n");
     vTaskDelay(M2T(2000));
-    DEBUG_PRINT("Hello World!\n");
   }
 }
+
+
+PARAM_GROUP_START(visualhoming)
+PARAM_ADD(PARAM_INT8, start, &start)
+PARAM_GROUP_STOP(visualhoming)

@@ -1,2 +1,2 @@
-obj-y += hello_world.o
+obj-y += visualhoming.o
 obj-y += visualhoming_common.o
