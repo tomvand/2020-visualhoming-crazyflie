@@ -38,4 +38,4 @@ venv:
 	touch venv
 
 app/src/pprzlink/pprzlink.h: messages.xml
-	ext/pprzlink/tools/generator/gen_messages.py --protocol 2.0 --lang C_standalone -o $@ messages.xml intermcu --opt VISUALHOMING_VECTOR,VISUALHOMING_MAP,VISUALHOMING_CAMERA,VISUALHOMING_INS_CORRECTION,IMCU_DEBUG
+	ext/pprzlink/tools/generator/gen_messages.py --protocol 2.0 --lang C_standalone -o $@ messages.xml intermcu --opt VISUALHOMING_COMMAND,VISUALHOMING_VECTOR,VISUALHOMING_MAP,VISUALHOMING_CAMERA,VISUALHOMING_INS_CORRECTION,IMCU_DEBUG

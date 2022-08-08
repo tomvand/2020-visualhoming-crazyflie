@@ -9,6 +9,8 @@
 
 #include "visualhoming_common.h"
 
+void camera_init(void);
+
 // Implemented here:
 extern void visualhoming_camera_send(vh_msg_t *camera_msg);
 extern bool visualhoming_camera_receive(vh_msg_t *camera_msg_out);
