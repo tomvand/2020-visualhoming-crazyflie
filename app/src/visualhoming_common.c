@@ -32,8 +32,14 @@ static void camera_communicate_state(void) {
   } else if (camera_state.local == camera_state.remote) {
     camera_state.local = STATE_SYNCED;
   } else {
-    uint8_t command = (uint8_t) camera_state.local;
-    visualhoming_camera_send(); // TODO
+    camera_msg_t msg;
+    log_msg_t log;
+    msg.type = CAM_MSG_T_COMMAND;
+    msg.command.command = (uint8_t) camera_state.local;
+    visualhoming_camera_send(msg);
+    log.type = LOG_MSG_T_COMMAND;
+    log.command.command = msg.command.command;
+    visualhoming_log(log);
   }
 }
 
@@ -42,17 +48,27 @@ static void camera_set_state(enum camera_state_t cmd) {
 }
 
 static void camera_receive(void) {
+  static uint16_t ins_correction_idx = 0;
   camera_msg_t message;
   while (visualhoming_camera_receive(&message)) {
     switch (message.type) {
       case CAM_MSG_T_COMMAND:
         camera_state.remote = message.command.command;
         break;
-      case CAM_MSG_T_VECTOR: // TODO
+      case CAM_MSG_T_VECTOR:
+        visualhoming_set_goal(message.vector.target.n, message.vector.target.e);
         break;
       case CAM_MSG_T_MAP: // TODO
         break;
-      case CAM_MSG_T_INS_CORRECTION: // TODO
+      case CAM_MSG_T_INS_CORRECTION:
+        if (message.ins_correction.idx != ins_correction_idx) {
+          ins_correction_idx = message.ins_correction.idx;
+          float dn = message.ins_correction.to.n - message.ins_correction.from.n;
+          float de = message.ins_correction.to.e - message.ins_correction.from.e;
+          float dpsi = message.ins_correction.psi_to - message.ins_correction.psi_from;
+          visualhoming_position_update(dn, de);
+          visualhoming_heading_update(dpsi);
+        }
         break;
       case CAM_MSG_T_SNAPSHOT: // TODO
         break;
