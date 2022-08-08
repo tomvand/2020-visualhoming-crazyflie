@@ -26,20 +26,21 @@ static struct {
   enum camera_state_t remote;
 } camera_state;
 
+static struct {
+  bool is_new;
+  struct msg_vector_t vector;
+} vector;
+
 static void camera_communicate_state(void) {
   if (camera_state.local == STATE_SYNCED) {
     // Do nothing
   } else if (camera_state.local == camera_state.remote) {
     camera_state.local = STATE_SYNCED;
   } else {
-    camera_msg_t msg;
-    log_msg_t log;
-    msg.type = CAM_MSG_T_COMMAND;
+    vh_msg_t msg;
+    msg.type = VH_MSG_COMMAND;
     msg.command.command = (uint8_t) camera_state.local;
-    visualhoming_camera_send(msg);
-    log.type = LOG_MSG_T_COMMAND;
-    log.command.command = msg.command.command;
-    visualhoming_log(log);
+    visualhoming_camera_send(&msg);
   }
 }
 
@@ -47,30 +48,38 @@ static void camera_set_state(enum camera_state_t cmd) {
   camera_state.local = cmd;
 }
 
+// returns: TRUE when additional calls required
+static bool camera_set_verify_state(enum camera_state_t cmd) {
+  if (camera_state.local == STATE_SYNCED && camera_state.remote == cmd) {
+    return false;
+  } else {
+    camera_set_state(cmd);
+    return true;
+  }
+}
+
 static void camera_receive(void) {
   static uint16_t ins_correction_idx = 0;
-  camera_msg_t message;
-  while (visualhoming_camera_receive(&message)) {
-    switch (message.type) {
-      case CAM_MSG_T_COMMAND:
-        camera_state.remote = message.command.command;
+  vh_msg_t msg;
+  while (visualhoming_camera_receive(&msg)) {
+    visualhoming_log(&msg);
+    switch (msg.type) {
+      case VH_MSG_COMMAND:
+        camera_state.remote = msg.command.command;
         break;
-      case CAM_MSG_T_VECTOR:
-        visualhoming_set_goal(message.vector.target.n, message.vector.target.e);
+      case VH_MSG_VECTOR:
+        vector.vector = msg.vector;
+        vector.is_new = true;
         break;
-      case CAM_MSG_T_MAP: // TODO
-        break;
-      case CAM_MSG_T_INS_CORRECTION:
-        if (message.ins_correction.idx != ins_correction_idx) {
-          ins_correction_idx = message.ins_correction.idx;
-          float dn = message.ins_correction.to.n - message.ins_correction.from.n;
-          float de = message.ins_correction.to.e - message.ins_correction.from.e;
-          float dpsi = message.ins_correction.psi_to - message.ins_correction.psi_from;
+      case VH_MSG_INS_CORRECTION:
+        if (msg.ins_correction.idx != ins_correction_idx) {
+          ins_correction_idx = msg.ins_correction.idx;
+          float dn = msg.ins_correction.to.n - msg.ins_correction.from.n;
+          float de = msg.ins_correction.to.e - msg.ins_correction.from.e;
+          float dpsi = msg.ins_correction.psi_to - msg.ins_correction.psi_from;
           visualhoming_position_update(dn, de);
           visualhoming_heading_update(dpsi);
         }
-        break;
-      case CAM_MSG_T_SNAPSHOT: // TODO
         break;
       default:
         break;
@@ -83,20 +92,39 @@ static void camera_receive(void) {
 // External functions /////////////////////////////////////
 
 void visualhoming_common_init(void) {
-
+  // Do nothing for now
 }
 
 
 void visualhoming_common_periodic(void) {
-
+  // Send drone state to camera
+  vh_msg_t msg;
+  msg.type = VH_MSG_STATE;
+  msg.state.state = visualhoming_get_state();
+  visualhoming_camera_send(&msg);
+  // Update camera state/command
+  camera_communicate_state();
+  // Receive readback and homing vectors
+  camera_receive();
 }
 
 
-extern void visualhoming_record(record_mode_t mode) {
-
+// returns: TRUE when additional calls required
+bool visualhoming_record(record_mode_t mode) {
+  return camera_set_verify_state(mode);
 }
 
 
-extern void visualhoming_follow(follow_mode_t mode) {
-
+// returns: TRUE when additional calls required
+bool visualhoming_follow(follow_mode_t mode) {
+  if (camera_state.remote != FOLLOW) {
+    camera_set_state(FOLLOW);
+  } else if (camera_state.local == STATE_SYNCED &&
+      camera_state.remote >= FOLLOW_STAY &&
+      camera_state.remote <= FOLLOW &&
+      vector.is_new) {
+    visualhoming_set_goal(vector.vector.to.n, vector.vector.to.e);
+  }
+  vector.is_new = false;
+  return true;  // Never ends
 }
