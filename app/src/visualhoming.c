@@ -31,6 +31,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+
+#include "camera.h"
+#include "visualhoming_common.h"
+
+
 #include "app.h"
 #include "crtp_commander_high_level.h"
 
@@ -43,7 +48,107 @@
 #include "param.h"
 
 
+#ifndef VISUALHOMING_Z
+#define VISUALHOMING_Z 1.0
+#endif
+
+#ifndef VISUALHOMING_VREF
+#define VISUALHOMING_VREF 1.0
+#endif
+
+
+static struct params_t {
+  struct {
+    // Bool switches
+    uint8_t enable;
+    uint8_t record_snapshot_single;
+    uint8_t record_snapshot_sequence;
+    uint8_t record_odometry;
+    uint8_t record_both_single;
+    uint8_t record_both_sequence;
+    uint8_t record_clear;
+    uint8_t follow_stay;
+    uint8_t follow;
+  } sw;
+  float z;
+  float vref;
+} params;
+
+static struct varid_t {
+  logVarId_t pos_x;
+  logVarId_t pos_y;
+  logVarId_t pos_z;
+  logVarId_t att_roll;
+  logVarId_t att_pitch;
+  logVarId_t att_yaw;
+} varid;
+
+
+///////////////////////////////////////////////////////////
+
+
+void visualhoming_set_goal(float n, float e) {
+  static float last_n, last_e;
+  if (params.sw.enable) {
+    if (n != last_n || e != last_e) {
+      last_n = n;
+      last_e = e;
+      float dist = 0;
+      float time = dist / params.vref;
+      if (time < 1.0f) time = 1.0;
+      crtpCommanderHighLevelGoTo(n, e, params.z, logGetFloat(varid.att_yaw), time, false);
+    }
+  } else {
+    crtpCommanderHighLevelDisable();
+  }
+}
+
+void visualhoming_position_update(float dn, float de) {
+
+}
+
+void visualhoming_heading_update(float dpsi) {
+
+}
+
+void visualhoming_log(vh_msg_t *log_msg) {
+  switch (log_msg->type) {
+    case VH_MSG_VECTOR:
+      DEBUG_PRINT("Vector received!\n");
+    default:
+      break;
+  }
+}
+
+struct state_t visualhoming_get_state(void) {
+  struct state_t state;
+  state.pos.n = logGetFloat(varid.pos_x);
+  state.pos.e = logGetFloat(varid.pos_y);
+  state.att.phi = 0;
+  state.att.theta = 0;
+  state.att.psi = logGetFloat(varid.att_yaw) / 180.0f * (float)M_PI;
+  return state;
+}
+
+
+///////////////////////////////////////////////////////////
+
+
 static void app_init(void) {
+  params.z = VISUALHOMING_Z;
+  params.vref = VISUALHOMING_VREF;
+  varid.pos_x = logGetVarId("stateEstimate", "x");
+  varid.pos_y = logGetVarId("stateEstimate", "y");
+  varid.pos_z = logGetVarId("stateEstimate", "z");
+  varid.att_roll = logGetVarId("stateEstimate", "roll");
+  varid.att_pitch = logGetVarId("stateEstimate", "pitch");
+  varid.att_yaw = logGetVarId("stateEstimate", "yaw");
+  camera_init();
+  visualhoming_common_init();
+}
+
+
+static void app_periodic(void) {
 
 }
 
@@ -51,7 +156,8 @@ static void app_init(void) {
 void appMain() {
   app_init();
   while (1) {
-    vTaskDelay(M2T(1000));
+    app_periodic();
+    vTaskDelay(M2T(50));
   }
 }
 

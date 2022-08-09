@@ -89,6 +89,7 @@ static void new_message_cb(uint8_t sender_id, uint8_t receiver_id, uint8_t class
 // Camera communication functions /////////////////////////
 
 void camera_init(void) {
+  uart2Init(921600);
   dev_tx = pprzlink_device_tx_init(
       &check_space,
       &put_char,

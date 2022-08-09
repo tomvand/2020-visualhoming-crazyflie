@@ -28,8 +28,16 @@ struct state_t {
   struct att3f_t att;
 };
 
-typedef uint8_t record_mode_t; // TODO
-typedef uint8_t follow_mode_t; // TODO
+enum camera_state_t {
+  STATE_SYNCED    = 0xFF, // Local only!
+  STATE_IDLE      = 0x00,
+  RECORD_CLEAR    = 0x0F,
+  RECORD_SNAPSHOT = 0x01,
+  RECORD_ODOMETRY = 0x02,
+  RECORD_SEQUENCE = 0x04,
+  FOLLOW_STAY     = 0x11,
+  FOLLOW          = 0x12,
+};
 
 enum vh_message_type {
   VH_MSG_COMMAND,
@@ -88,8 +96,8 @@ extern struct state_t visualhoming_get_state(void);
 extern void visualhoming_common_init(void);
 extern void visualhoming_common_periodic(void);
 
-extern bool visualhoming_record(record_mode_t mode);
-extern bool visualhoming_follow(follow_mode_t mode);
+extern bool visualhoming_record(enum camera_state_t mode);
+extern bool visualhoming_follow(enum camera_state_t mode);
 
 
 #endif // VISUALHOMING_COMMON_H__
