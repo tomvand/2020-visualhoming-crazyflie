@@ -50,7 +50,7 @@ static bool camera_set_verify_state(enum camera_state_t cmd) {
 static void camera_receive(void) {
   static uint16_t ins_correction_idx = 0;
   vh_msg_t msg;
-  while (visualhoming_camera_receive(&msg)) {
+  for (int i = 0; i < 10; i++, visualhoming_camera_receive(&msg)) {
     visualhoming_log(&msg);
     switch (msg.type) {
       case VH_MSG_COMMAND:

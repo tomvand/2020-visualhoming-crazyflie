@@ -213,7 +213,7 @@ void appMain() {
   unsigned int ms, max_ms = 0;
 
   TickType_t xLastWakeTime = xTaskGetTickCount();
-  const TickType_t xPeriod = M2T(100);
+  const TickType_t xPeriod = M2T(10);
   while (1) {
     debug_start = xTaskGetTickCount();
     app_periodic();
