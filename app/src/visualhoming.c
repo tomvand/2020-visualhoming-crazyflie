@@ -149,7 +149,43 @@ static void app_init(void) {
 
 
 static void app_periodic(void) {
-
+  // Handle param switches
+  static enum camera_state_t state;
+  if (params.sw.record_clear) {
+    params.sw.record_clear = 0;
+    state = RECORD_CLEAR;
+  } else if (params.sw.record_snapshot_single) {
+    params.sw.record_snapshot_single = 0;
+    state = RECORD_SNAPSHOT;
+  } else if (params.sw.record_snapshot_sequence) {
+    params.sw.record_snapshot_sequence = 0;
+    state = RECORD_SNAPSHOT | RECORD_SEQUENCE;
+  } else if (params.sw.record_odometry) {
+    params.sw.record_odometry = 0;
+    state = RECORD_ODOMETRY;
+  } else if (params.sw.record_both_single) {
+    params.sw.record_both_single = 0;
+    state = RECORD_SNAPSHOT | RECORD_ODOMETRY;
+  } else if (params.sw.record_both_sequence) {
+    params.sw.record_both_sequence = 0;
+    state = RECORD_SNAPSHOT | RECORD_ODOMETRY | RECORD_SEQUENCE;
+  } else if (params.sw.follow_stay) {
+    params.sw.follow_stay = 0;
+    state = FOLLOW_STAY;
+  } else if (params.sw.follow) {
+    params.sw.follow = 0;
+    state = FOLLOW;
+  }
+  // Run record/follow functions
+  if (state & 0x10) {
+    // Follow
+    visualhoming_follow(state);
+  } else {
+    // Record
+    visualhoming_record(state);
+  }
+  // Run visualhoming_common
+  visualhoming_common_periodic();
 }
 
 
