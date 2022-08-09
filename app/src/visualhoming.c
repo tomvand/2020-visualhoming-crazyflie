@@ -139,7 +139,7 @@ void visualhoming_log(vh_msg_t *log_msg) {
 struct state_t visualhoming_get_state(void) {
   struct state_t state;
   state.pos.n = logGetFloat(varid.pos_x);
-  state.pos.e = logGetFloat(varid.pos_y);
+  state.pos.e = -logGetFloat(varid.pos_y);
   state.att.phi = 0;
   state.att.theta = 0;
   state.att.psi = -logGetFloat(varid.att_yaw) / 180.0f * (float)M_PI;
@@ -208,9 +208,23 @@ static void app_periodic(void) {
 
 void appMain() {
   app_init();
+
+  TickType_t debug_start, debug_end, debug_delta;
+  unsigned int ms, max_ms = 0;
+
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xPeriod = M2T(100);
   while (1) {
+    debug_start = xTaskGetTickCount();
     app_periodic();
-    vTaskDelay(M2T(50));
+    debug_end = xTaskGetTickCount();
+    debug_delta = debug_end - debug_start;
+    ms = T2M(debug_delta);
+    if (ms > max_ms) {
+      max_ms = ms;
+      DEBUG_PRINT("max delta = %u ms\n", max_ms);
+    }
+    vTaskDelayUntil(&xLastWakeTime, xPeriod);
   }
 }
 

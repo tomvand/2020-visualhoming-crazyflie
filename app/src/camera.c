@@ -33,7 +33,7 @@ struct pprzlink_device_tx dev_tx;
 static uint8_t single_char_buf;
 
 static int char_available(void) {
-  return uart2GetCharWithTimeout(&single_char_buf, M2T(10));
+  return uart2GetCharWithTimeout(&single_char_buf, M2T(1));
 }
 
 static uint8_t get_char(void) {
@@ -89,7 +89,7 @@ static void new_message_cb(uint8_t sender_id, uint8_t receiver_id, uint8_t class
 // Camera communication functions /////////////////////////
 
 void camera_init(void) {
-  uart2Init(921600);
+  uart2Init(9600);
   dev_tx = pprzlink_device_tx_init(
       &check_space,
       &put_char,
