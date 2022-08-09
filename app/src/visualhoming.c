@@ -57,23 +57,6 @@
 #endif
 
 
-static struct params_t {
-  struct {
-    // Bool switches
-    uint8_t enable;
-    uint8_t record_snapshot_single;
-    uint8_t record_snapshot_sequence;
-    uint8_t record_odometry;
-    uint8_t record_both_single;
-    uint8_t record_both_sequence;
-    uint8_t record_clear;
-    uint8_t follow_stay;
-    uint8_t follow;
-  } sw;
-  float z;
-  float vref;
-} params;
-
 static struct varid_t {
   logVarId_t pos_x;
   logVarId_t pos_y;
@@ -82,6 +65,39 @@ static struct varid_t {
   logVarId_t att_pitch;
   logVarId_t att_yaw;
 } varid;
+
+
+static struct params_t {
+  struct {
+    // Bool switches
+    uint8_t enable;
+    uint8_t record_clear;
+    uint8_t record_snapshot_single;
+    uint8_t record_snapshot_sequence;
+    uint8_t record_odometry;
+    uint8_t record_both_single;
+    uint8_t record_both_sequence;
+    uint8_t follow_stay;
+    uint8_t follow;
+  } sw;
+  float z;
+  float vref;
+} params;
+
+
+PARAM_GROUP_START(vh)
+PARAM_ADD(PARAM_UINT8, sw_enable, &params.sw.enable)
+PARAM_ADD(PARAM_UINT8, sw_clear, &params.sw.record_clear)
+PARAM_ADD(PARAM_UINT8, sw_ss_single, &params.sw.record_snapshot_single)
+PARAM_ADD(PARAM_UINT8, sw_ss_seq, &params.sw.record_snapshot_sequence)
+PARAM_ADD(PARAM_UINT8, sw_odo, &params.sw.record_odometry)
+PARAM_ADD(PARAM_UINT8, sw_both_single, &params.sw.record_both_single)
+PARAM_ADD(PARAM_UINT8, sw_both_seq, &params.sw.record_both_sequence)
+PARAM_ADD(PARAM_UINT8, sw_follow_stay, &params.sw.follow_stay)
+PARAM_ADD(PARAM_UINT8, sw_follow, &params.sw.follow)
+PARAM_ADD(PARAM_UINT8, z, &params.z)
+PARAM_ADD(PARAM_UINT8, vref, &params.vref)
+PARAM_GROUP_STOP(visualhoming)
 
 
 ///////////////////////////////////////////////////////////
@@ -126,7 +142,7 @@ struct state_t visualhoming_get_state(void) {
   state.pos.e = logGetFloat(varid.pos_y);
   state.att.phi = 0;
   state.att.theta = 0;
-  state.att.psi = logGetFloat(varid.att_yaw) / 180.0f * (float)M_PI;
+  state.att.psi = -logGetFloat(varid.att_yaw) / 180.0f * (float)M_PI;
   return state;
 }
 
@@ -135,6 +151,7 @@ struct state_t visualhoming_get_state(void) {
 
 
 static void app_init(void) {
+  params.sw.enable = 0;
   params.z = VISUALHOMING_Z;
   params.vref = VISUALHOMING_VREF;
   varid.pos_x = logGetVarId("stateEstimate", "x");
