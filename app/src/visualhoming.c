@@ -57,6 +57,14 @@
 #define VISUALHOMING_VREF 1.0
 #endif
 
+#ifndef VISUALHOMING_YAW_RAD_SD
+#define VISUALHOMING_YAW_RAD_SD 0.17 // approx 10deg
+#endif
+
+#ifndef VISUALHOMING_POS_M_SD
+#define VISUALHOMING_POS_M_SD 0.50
+#endif
+
 
 static struct varid_t {
   logVarId_t pos_x;
@@ -83,8 +91,11 @@ static struct params_t {
   } sw;
   float z;
   float vref;
+  float yaw_rad_sd;
+  float pos_m_sd;
   struct {
     uint8_t force_yaw;
+    uint8_t force_pos;
   } debug;
 } params;
 
@@ -101,7 +112,10 @@ PARAM_ADD(PARAM_UINT8, sw_follow_stay, &params.sw.follow_stay)
 PARAM_ADD(PARAM_UINT8, sw_follow, &params.sw.follow)
 PARAM_ADD(PARAM_UINT8, z, &params.z)
 PARAM_ADD(PARAM_UINT8, vref, &params.vref)
+PARAM_ADD(PARAM_UINT8, yaw_rad_sd, &params.yaw_rad_sd)
+PARAM_ADD(PARAM_UINT8, pos_m_sd, &params.pos_m_sd)
 PARAM_ADD(PARAM_UINT8, db_yaw, &params.debug.force_yaw)
+PARAM_ADD(PARAM_UINT8, db_pos, &params.debug.force_pos)
 PARAM_GROUP_STOP(vh)
 
 
@@ -125,13 +139,21 @@ void visualhoming_set_goal(float n, float e) {
 }
 
 void visualhoming_position_update(float dn, float de) {
-
+  struct state_t state = visualhoming_get_state();
+  positionMeasurement_t pos = {
+      .x = state.pos.n + dn,
+      .y = -(state.pos.e + de),
+      .z = state.pos.u,  // Can only provide all three axes
+      .stdDev = params.pos_m_sd,
+      .source = 99,
+  };
+  estimatorEnqueuePosition(&pos);
 }
 
 void visualhoming_heading_update(float dpsi) {
   yawErrorMeasurement_t ye = {
       .yawError = dpsi / 2,
-      .stdDev = 0.01,
+      .stdDev = params.yaw_rad_sd,
   };
   estimatorEnqueueYawError(&ye);
 }
@@ -151,6 +173,7 @@ struct state_t visualhoming_get_state(void) {
   struct state_t state;
   state.pos.n = logGetFloat(varid.pos_x);
   state.pos.e = -logGetFloat(varid.pos_y);
+  state.pos.u = logGetFloat(varid.pos_z);
   state.att.phi = 0;
   state.att.theta = 0;
   state.att.psi = -logGetFloat(varid.att_yaw) / 180.0f * (float)M_PI;
@@ -165,6 +188,8 @@ static void app_init(void) {
   params.sw.enable = 0;
   params.z = VISUALHOMING_Z;
   params.vref = VISUALHOMING_VREF;
+  params.yaw_rad_sd = VISUALHOMING_YAW_RAD_SD;
+  params.pos_m_sd = VISUALHOMING_POS_M_SD;
   varid.pos_x = logGetVarId("stateEstimate", "x");
   varid.pos_y = logGetVarId("stateEstimate", "y");
   varid.pos_z = logGetVarId("stateEstimate", "z");
@@ -220,6 +245,14 @@ static void app_periodic(void) {
     float psi_tgt = radians(20.0); // NED; -20.0deg in cfclient
     float dpsi = psi_tgt - state.att.psi;
     visualhoming_heading_update(dpsi);
+  }
+  if (params.debug.force_pos) {
+    struct state_t state = visualhoming_get_state();
+    struct pos3f_t pos_tgt = {
+        .n = 1.0,
+        .e = 2.0,
+    };
+    visualhoming_position_update(pos_tgt.n - state.pos.n, pos_tgt.e  -state.pos.e);
   }
 }
 
