@@ -201,6 +201,24 @@ static void app_init(void) {
 }
 
 
+static void app_debug_periodic(void) {
+  if (params.debug.force_yaw) {
+    struct state_t state = visualhoming_get_state();
+    float psi_tgt = radians(20.0); // NED; -20.0deg in cfclient
+    float dpsi = psi_tgt - state.att.psi;
+    visualhoming_heading_update(dpsi);
+  }
+  if (params.debug.force_pos) {
+    struct state_t state = visualhoming_get_state();
+    struct pos3f_t pos_tgt = {
+        .n = 1.0,
+        .e = 2.0,
+    };
+    visualhoming_position_update(pos_tgt.n - state.pos.n, pos_tgt.e  -state.pos.e);
+  }
+}
+
+
 static void app_periodic(void) {
   // Handle param switches
   static enum camera_state_t state;
@@ -239,21 +257,6 @@ static void app_periodic(void) {
   }
   // Run visualhoming_common
   visualhoming_common_periodic();
-  // DEBUG CODE
-  if (params.debug.force_yaw) {
-    struct state_t state = visualhoming_get_state();
-    float psi_tgt = radians(20.0); // NED; -20.0deg in cfclient
-    float dpsi = psi_tgt - state.att.psi;
-    visualhoming_heading_update(dpsi);
-  }
-  if (params.debug.force_pos) {
-    struct state_t state = visualhoming_get_state();
-    struct pos3f_t pos_tgt = {
-        .n = 1.0,
-        .e = 2.0,
-    };
-    visualhoming_position_update(pos_tgt.n - state.pos.n, pos_tgt.e  -state.pos.e);
-  }
 }
 
 
@@ -268,6 +271,7 @@ void appMain() {
   while (1) {
     debug_start = xTaskGetTickCount();
     app_periodic();
+    app_debug_periodic();
     debug_end = xTaskGetTickCount();
     debug_delta = debug_end - debug_start;
     ms = T2M(debug_delta);
