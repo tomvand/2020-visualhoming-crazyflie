@@ -1,0 +1,3 @@
+[submodule "ext/pprzlink"]
+	path = ext/pprzlink
+	url = git@github.com:paparazzi/pprzlink.git

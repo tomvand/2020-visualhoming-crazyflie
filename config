@@ -3,3 +3,4 @@ ARM_NONE_EABI_BIN=/opt/gcc-arm-11.2-2022.02-x86_64-arm-none-eabi/bin
 
 CRAZYFLIE_BASE=/home/tom/code/cfbl/crazyflie-firmware
 CLOAD_CMDS="-w radio://0/66/2M"
+#CLOAD_CMDS="-w radio://0/70/2M/E7E7E7E7E0"

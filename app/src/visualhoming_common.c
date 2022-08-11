@@ -10,17 +10,6 @@
 
 // Camera communication ///////////////////////////////////
 
-enum camera_state_t {
-  STATE_SYNCED    = 0xFF, // Local only!
-  STATE_IDLE      = 0x00,
-  RECORD_CLEAR    = 0x0F,
-  RECORD_SNAPSHOT = 0x01,
-  RECORD_ODOMETRY = 0x02,
-  RECORD_SEQUENCE = 0x04,
-  FOLLOW_STAY     = 0x11,
-  FOLLOW          = 0x12,
-};
-
 static struct {
   enum camera_state_t local;
   enum camera_state_t remote;
@@ -61,7 +50,7 @@ static bool camera_set_verify_state(enum camera_state_t cmd) {
 static void camera_receive(void) {
   static uint16_t ins_correction_idx = 0;
   vh_msg_t msg;
-  while (visualhoming_camera_receive(&msg)) {
+  for (int i = 0; i < 10; i++, visualhoming_camera_receive(&msg)) {
     visualhoming_log(&msg);
     switch (msg.type) {
       case VH_MSG_COMMAND:
@@ -110,15 +99,15 @@ void visualhoming_common_periodic(void) {
 
 
 // returns: TRUE when additional calls required
-bool visualhoming_record(record_mode_t mode) {
+bool visualhoming_record(enum camera_state_t mode) {
   return camera_set_verify_state(mode);
 }
 
 
 // returns: TRUE when additional calls required
-bool visualhoming_follow(follow_mode_t mode) {
-  if (camera_state.remote != FOLLOW) {
-    camera_set_state(FOLLOW);
+bool visualhoming_follow(enum camera_state_t mode) {
+  if (camera_state.remote != mode) {
+    camera_set_state(mode);
   } else if (camera_state.local == STATE_SYNCED &&
       camera_state.remote >= FOLLOW_STAY &&
       camera_state.remote <= FOLLOW &&
