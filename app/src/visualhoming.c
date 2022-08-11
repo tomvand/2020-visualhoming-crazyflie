@@ -38,6 +38,7 @@
 
 #include "app.h"
 #include "crtp_commander_high_level.h"
+#include "estimator.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -82,6 +83,9 @@ static struct params_t {
   } sw;
   float z;
   float vref;
+  struct {
+    uint8_t force_yaw;
+  } debug;
 } params;
 
 
@@ -97,7 +101,8 @@ PARAM_ADD(PARAM_UINT8, sw_follow_stay, &params.sw.follow_stay)
 PARAM_ADD(PARAM_UINT8, sw_follow, &params.sw.follow)
 PARAM_ADD(PARAM_UINT8, z, &params.z)
 PARAM_ADD(PARAM_UINT8, vref, &params.vref)
-PARAM_GROUP_STOP(visualhoming)
+PARAM_ADD(PARAM_UINT8, db_yaw, &params.debug.force_yaw)
+PARAM_GROUP_STOP(vh)
 
 
 ///////////////////////////////////////////////////////////
@@ -138,6 +143,7 @@ void visualhoming_log(vh_msg_t *log_msg) {
 }
 
 struct state_t visualhoming_get_state(void) {
+  // Note: pos and att returned in NED frame!
   struct state_t state;
   state.pos.n = logGetFloat(varid.pos_x);
   state.pos.e = -logGetFloat(varid.pos_y);
@@ -204,6 +210,16 @@ static void app_periodic(void) {
   }
   // Run visualhoming_common
   visualhoming_common_periodic();
+  // DEBUG CODE
+  if (params.debug.force_yaw) {
+    struct state_t state = visualhoming_get_state();
+    float ye_rad = radians(-20.0) - state.att.psi;
+    yawErrorMeasurement_t ye = {
+        .yawError = ye_rad / 2,
+        .stdDev = 0.01,
+    };
+    estimatorEnqueueYawError(&ye);
+  }
 }
 
 
