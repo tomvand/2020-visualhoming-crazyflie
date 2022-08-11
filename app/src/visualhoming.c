@@ -129,7 +129,11 @@ void visualhoming_position_update(float dn, float de) {
 }
 
 void visualhoming_heading_update(float dpsi) {
-
+  yawErrorMeasurement_t ye = {
+      .yawError = dpsi / 2,
+      .stdDev = 0.01,
+  };
+  estimatorEnqueueYawError(&ye);
 }
 
 void visualhoming_log(vh_msg_t *log_msg) {
@@ -213,12 +217,9 @@ static void app_periodic(void) {
   // DEBUG CODE
   if (params.debug.force_yaw) {
     struct state_t state = visualhoming_get_state();
-    float ye_rad = radians(-20.0) - state.att.psi;
-    yawErrorMeasurement_t ye = {
-        .yawError = ye_rad / 2,
-        .stdDev = 0.01,
-    };
-    estimatorEnqueueYawError(&ye);
+    float psi_tgt = radians(20.0); // NED; -20.0deg in cfclient
+    float dpsi = psi_tgt - state.att.psi;
+    visualhoming_heading_update(dpsi);
   }
 }
 
