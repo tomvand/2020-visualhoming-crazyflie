@@ -12,32 +12,52 @@
 
 #include "pprzlink/pprzlink.h"
 
+#define DEBUG_MODULE "VH_CAMERA"
+#include "debug.h"
+
 
 // Pprzlink callbacks /////////////////////////////////////
 // TX
-static int check_space(uint8_t n) {
-  return true;  // Always 'enough' space
-}
+#define TX_BUF_SIZE 1024
+static uint8_t tx_buf[TX_BUF_SIZE];
+static size_t tx_buf_len = 0;
 
-static void put_char(uint8_t c) {
-  uart2Putchar(c);
+static int check_space(uint8_t n) {
+  return (TX_BUF_SIZE - tx_buf_len);
 }
 
 static void send_message(void) {
-  // Do nothing
+  uart2SendDataDmaBlocking(tx_buf_len, tx_buf);
+//  uart2SendData(tx_buf_len, tx_buf);
+  tx_buf_len = 0;
+}
+
+static void put_char(uint8_t c) {
+  if (tx_buf_len == TX_BUF_SIZE) send_message();
+  tx_buf[tx_buf_len] = c;
+  tx_buf_len++;
 }
 
 struct pprzlink_device_tx dev_tx;
 
 // RX
-static uint8_t single_char_buf;
+#define RX_BUF_SIZE 1024
+static uint8_t rx_buf[RX_BUF_SIZE];
+static int rx_buf_len;
+static int rx_buf_idx;
 
 static int char_available(void) {
-  return uart2GetCharWithTimeout(&single_char_buf, M2T(1));
+  if (rx_buf_idx == rx_buf_len) {
+    rx_buf_len = uart2GetDataWithTimeout(RX_BUF_SIZE, rx_buf, M2T(1));
+    rx_buf_idx = 0;
+  }
+  return rx_buf_len - rx_buf_idx;
 }
 
 static uint8_t get_char(void) {
-  return single_char_buf;
+  uint8_t c = rx_buf[rx_buf_idx];
+  rx_buf_idx++;
+  return c;
 }
 
 static uint8_t rx_buffer[255];
@@ -50,6 +70,7 @@ static struct message_buffer_t {
 } message_buffer;
 
 static void new_message_cb(uint8_t sender_id, uint8_t receiver_id, uint8_t class_id, uint8_t message_id, uint8_t *buf, void *user_data) {
+  DEBUG_PRINT("New pprz message id %d\n", message_id);
   switch (message_id) {
     case PPRZ_MSG_ID_VISUALHOMING_COMMAND:
       message_buffer.is_new = true;
@@ -102,6 +123,7 @@ void camera_init(void) {
 }
 
 void visualhoming_camera_send(vh_msg_t *camera_msg) {
+  DEBUG_PRINT("Sending message type %d\n", camera_msg->type);
   switch (camera_msg->type) {
     case VH_MSG_COMMAND:
       pprzlink_msg_send_VISUALHOMING_COMMAND(&dev_tx, 0, 0,

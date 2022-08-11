@@ -106,8 +106,8 @@ bool visualhoming_record(enum camera_state_t mode) {
 
 // returns: TRUE when additional calls required
 bool visualhoming_follow(enum camera_state_t mode) {
-  if (camera_state.remote != FOLLOW) {
-    camera_set_state(FOLLOW);
+  if (camera_state.remote != mode) {
+    camera_set_state(mode);
   } else if (camera_state.local == STATE_SYNCED &&
       camera_state.remote >= FOLLOW_STAY &&
       camera_state.remote <= FOLLOW &&

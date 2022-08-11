@@ -131,6 +131,7 @@ void visualhoming_log(vh_msg_t *log_msg) {
   switch (log_msg->type) {
     case VH_MSG_VECTOR:
       DEBUG_PRINT("Vector received!\n");
+      break;
     default:
       break;
   }
@@ -213,7 +214,7 @@ void appMain() {
   unsigned int ms, max_ms = 0;
 
   TickType_t xLastWakeTime = xTaskGetTickCount();
-  const TickType_t xPeriod = M2T(10);
+  const TickType_t xPeriod = M2T(100);
   while (1) {
     debug_start = xTaskGetTickCount();
     app_periodic();
