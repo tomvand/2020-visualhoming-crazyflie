@@ -38,6 +38,7 @@
 
 #include "app.h"
 #include "crtp_commander_high_level.h"
+#include "estimator.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -49,11 +50,28 @@
 
 
 #ifndef VISUALHOMING_Z
-#define VISUALHOMING_Z 1.0
+#define VISUALHOMING_Z 0.5
+#endif
+
+#ifndef VISUALHOMING_MAX_Z
+#define VISUALHOMING_MAX_Z 1.0
 #endif
 
 #ifndef VISUALHOMING_VREF
 #define VISUALHOMING_VREF 1.0
+#endif
+
+#ifndef VISUALHOMING_MAX_DIST_FROM_HOME
+#define VISUALHOMING_MAX_DIST_FROM_HOME 4.0
+#endif
+
+
+#ifndef VISUALHOMING_YAW_RAD_SD
+#define VISUALHOMING_YAW_RAD_SD 0.17 // approx 10deg
+#endif
+
+#ifndef VISUALHOMING_POS_M_SD
+#define VISUALHOMING_POS_M_SD 0.50
 #endif
 
 
@@ -82,6 +100,16 @@ static struct params_t {
   } sw;
   float z;
   float vref;
+  float yaw_rad_sd;
+  float pos_m_sd;
+  struct {
+    float max_dist_from_home;
+    float max_z;
+  } safety;
+  struct {
+    uint8_t force_yaw;
+    uint8_t force_pos;
+  } debug;
 } params;
 
 
@@ -97,7 +125,16 @@ PARAM_ADD(PARAM_UINT8, sw_follow_stay, &params.sw.follow_stay)
 PARAM_ADD(PARAM_UINT8, sw_follow, &params.sw.follow)
 PARAM_ADD(PARAM_UINT8, z, &params.z)
 PARAM_ADD(PARAM_UINT8, vref, &params.vref)
-PARAM_GROUP_STOP(visualhoming)
+PARAM_ADD(PARAM_UINT8, yaw_rad_sd, &params.yaw_rad_sd)
+PARAM_ADD(PARAM_UINT8, pos_m_sd, &params.pos_m_sd)
+PARAM_ADD(PARAM_UINT8, S_max_dist, &params.safety.max_dist_from_home)
+PARAM_ADD(PARAM_UINT8, S_max_alt, &params.safety.max_z)
+PARAM_ADD(PARAM_UINT8, db_yaw, &params.debug.force_yaw)
+PARAM_ADD(PARAM_UINT8, db_pos, &params.debug.force_pos)
+PARAM_GROUP_STOP(vh)
+
+
+static struct state_t state;  // Shared state buffer, to avoid repeated fetches.
 
 
 ///////////////////////////////////////////////////////////
@@ -120,11 +157,22 @@ void visualhoming_set_goal(float n, float e) {
 }
 
 void visualhoming_position_update(float dn, float de) {
-
+  positionMeasurement_t pos = {
+      .x = state.pos.n + dn,
+      .y = -(state.pos.e + de),
+      .z = state.pos.u,  // Can only provide all three axes
+      .stdDev = params.pos_m_sd,
+      .source = 99,
+  };
+  estimatorEnqueuePosition(&pos);
 }
 
 void visualhoming_heading_update(float dpsi) {
-
+  yawErrorMeasurement_t ye = {
+      .yawError = dpsi / 2,
+      .stdDev = params.yaw_rad_sd,
+  };
+  estimatorEnqueueYawError(&ye);
 }
 
 void visualhoming_log(vh_msg_t *log_msg) {
@@ -138,9 +186,11 @@ void visualhoming_log(vh_msg_t *log_msg) {
 }
 
 struct state_t visualhoming_get_state(void) {
+  // Note: pos and att returned in NED frame!
   struct state_t state;
   state.pos.n = logGetFloat(varid.pos_x);
   state.pos.e = -logGetFloat(varid.pos_y);
+  state.pos.u = logGetFloat(varid.pos_z);
   state.att.phi = 0;
   state.att.theta = 0;
   state.att.psi = -logGetFloat(varid.att_yaw) / 180.0f * (float)M_PI;
@@ -153,78 +203,129 @@ struct state_t visualhoming_get_state(void) {
 
 static void app_init(void) {
   params.sw.enable = 0;
+
   params.z = VISUALHOMING_Z;
   params.vref = VISUALHOMING_VREF;
+  params.yaw_rad_sd = VISUALHOMING_YAW_RAD_SD;
+  params.pos_m_sd = VISUALHOMING_POS_M_SD;
+
+  params.safety.max_dist_from_home = VISUALHOMING_MAX_DIST_FROM_HOME;
+  params.safety.max_z = VISUALHOMING_MAX_Z;
+
   varid.pos_x = logGetVarId("stateEstimate", "x");
   varid.pos_y = logGetVarId("stateEstimate", "y");
   varid.pos_z = logGetVarId("stateEstimate", "z");
   varid.att_roll = logGetVarId("stateEstimate", "roll");
   varid.att_pitch = logGetVarId("stateEstimate", "pitch");
   varid.att_yaw = logGetVarId("stateEstimate", "yaw");
+
   camera_init();
   visualhoming_common_init();
 }
 
 
-static void app_periodic(void) {
+static void app_debug_periodic(void) {
+  if (params.debug.force_yaw) {
+    float psi_tgt = radians(20.0); // NED; -20.0deg in cfclient
+    float dpsi = psi_tgt - state.att.psi;
+    visualhoming_heading_update(dpsi);
+  }
+  if (params.debug.force_pos) {
+    struct pos3f_t pos_tgt = {
+        .n = 1.0,
+        .e = 2.0,
+    };
+    visualhoming_position_update(pos_tgt.n - state.pos.n, pos_tgt.e  -state.pos.e);
+  }
+}
+
+static bool is_safe(void) {
+  float dist2_home = state.pos.n * state.pos.n + state.pos.e * state.pos.e;
+  float dist2_thres = params.safety.max_dist_from_home * params.safety.max_dist_from_home;
+
+  bool safe = true;
+  safe &= params.sw.enable;
+  safe &= dist2_home < dist2_thres;
+  safe &= state.pos.u < params.safety.max_z;
+  return safe;
+}
+
+
+static enum camera_state_t get_camera_mode(void) {
   // Handle param switches
-  static enum camera_state_t state;
+  static enum camera_state_t mode;
   if (params.sw.record_clear) {
     params.sw.record_clear = 0;
-    state = RECORD_CLEAR;
+    mode = RECORD_CLEAR;
   } else if (params.sw.record_snapshot_single) {
     params.sw.record_snapshot_single = 0;
-    state = RECORD_SNAPSHOT;
+    mode = RECORD_SNAPSHOT;
   } else if (params.sw.record_snapshot_sequence) {
     params.sw.record_snapshot_sequence = 0;
-    state = RECORD_SNAPSHOT | RECORD_SEQUENCE;
+    mode = RECORD_SNAPSHOT | RECORD_SEQUENCE;
   } else if (params.sw.record_odometry) {
     params.sw.record_odometry = 0;
-    state = RECORD_ODOMETRY;
+    mode = RECORD_ODOMETRY;
   } else if (params.sw.record_both_single) {
     params.sw.record_both_single = 0;
-    state = RECORD_SNAPSHOT | RECORD_ODOMETRY;
+    mode = RECORD_SNAPSHOT | RECORD_ODOMETRY;
   } else if (params.sw.record_both_sequence) {
     params.sw.record_both_sequence = 0;
-    state = RECORD_SNAPSHOT | RECORD_ODOMETRY | RECORD_SEQUENCE;
+    mode = RECORD_SNAPSHOT | RECORD_ODOMETRY | RECORD_SEQUENCE;
   } else if (params.sw.follow_stay) {
     params.sw.follow_stay = 0;
-    state = FOLLOW_STAY;
+    mode = FOLLOW_STAY;
   } else if (params.sw.follow) {
     params.sw.follow = 0;
-    state = FOLLOW;
+    mode = FOLLOW;
   }
-  // Run record/follow functions
-  if (state & 0x10) {
-    // Follow
-    visualhoming_follow(state);
-  } else {
-    // Record
-    visualhoming_record(state);
+  return mode;
+}
+
+
+static void app_periodic(void) {
+  static bool in_flight = false;
+
+  // Get drone state
+  state = visualhoming_get_state();
+
+  // Flight control
+  if (!in_flight) {
+    if (is_safe()) { // includes 'enable' switch
+      // TODO reset kalman
+      crtpCommanderHighLevelTakeoff(params.z, 1.0);
+      vTaskDelay(M2T(1000));
+      in_flight = true;
+    }
+  } else { // in_flight
+    if (!is_safe()) {
+      crtpCommanderHighLevelLand(0.0, 1.0);
+      vTaskDelay(M2T(1500));
+      crtpCommanderHighLevelStop();
+      params.sw.enable = 0;
+      in_flight = false;
+    } else { // is_safe
+      enum camera_state_t mode = get_camera_mode();
+      // Run record/follow functions
+      if (mode & 0x10) {
+        visualhoming_follow(mode);
+      } else {
+        visualhoming_record(mode);
+      }
+      visualhoming_common_periodic();
+    }
   }
-  // Run visualhoming_common
-  visualhoming_common_periodic();
 }
 
 
 void appMain() {
   app_init();
 
-  TickType_t debug_start, debug_end, debug_delta;
-  unsigned int ms, max_ms = 0;
-
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xPeriod = M2T(100);
   while (1) {
-    debug_start = xTaskGetTickCount();
     app_periodic();
-    debug_end = xTaskGetTickCount();
-    debug_delta = debug_end - debug_start;
-    ms = T2M(debug_delta);
-    if (ms > max_ms) {
-      max_ms = ms;
-      DEBUG_PRINT("max delta = %u ms\n", max_ms);
-    }
+    app_debug_periodic();
     vTaskDelayUntil(&xLastWakeTime, xPeriod);
   }
 }

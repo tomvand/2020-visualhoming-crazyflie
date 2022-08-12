@@ -12,9 +12,10 @@
 #include <inttypes.h>
 
 
-struct pos2f_t {
+struct pos3f_t {
   float n;
   float e;
+  float u;
 };
 
 struct att3f_t {
@@ -24,7 +25,7 @@ struct att3f_t {
 };
 
 struct state_t {
-  struct pos2f_t pos;
+  struct pos3f_t pos;
   struct att3f_t att;
 };
 
@@ -54,15 +55,15 @@ struct msg_command_t {
 
 struct msg_vector_t {
   uint8_t source;
-  struct pos2f_t to;
-  struct pos2f_t from;
+  struct pos3f_t to;
+  struct pos3f_t from;
   float delta_psi;
 };
 
 struct msg_ins_correction_t {
   uint16_t idx;
-  struct pos2f_t from;
-  struct pos2f_t to;
+  struct pos3f_t from;
+  struct pos3f_t to;
   float psi_from;
   float psi_to;
 };
