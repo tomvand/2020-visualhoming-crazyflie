@@ -82,6 +82,7 @@ static struct varid_t {
   logVarId_t att_roll;
   logVarId_t att_pitch;
   logVarId_t att_yaw;
+  paramVarId_t kalman_reset;
 } varid;
 
 
@@ -221,6 +222,8 @@ static void app_init(void) {
   varid.att_pitch = logGetVarId("stateEstimate", "pitch");
   varid.att_yaw = logGetVarId("stateEstimate", "yaw");
 
+  varid.kalman_reset = paramGetVarId("kalman", "resetEstimation");
+
   camera_init();
   visualhoming_common_init();
 }
@@ -302,7 +305,8 @@ static void app_periodic(void) {
   // Flight control
   if (!in_flight) {
     if (is_safe()) { // includes 'enable' switch
-      // TODO reset kalman
+      paramSetInt(varid.kalman_reset, 1);
+      vTaskDelay(M2T(1000));
       crtpCommanderHighLevelTakeoff(params.z, 1.0);
       vTaskDelay(M2T(1000));
       in_flight = true;
