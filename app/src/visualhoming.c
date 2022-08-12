@@ -89,6 +89,7 @@ static struct params_t {
   struct {
     // Bool switches
     uint8_t enable;
+    uint8_t kill;
     uint8_t record_clear;
     uint8_t record_snapshot_single;
     uint8_t record_snapshot_sequence;
@@ -114,7 +115,8 @@ static struct params_t {
 
 
 PARAM_GROUP_START(vh)
-PARAM_ADD(PARAM_UINT8, sw_enable, &params.sw.enable)
+PARAM_ADD(PARAM_UINT8,  SW_ENABLE, &params.sw.enable)
+PARAM_ADD(PARAM_UINT8, SW_KILL, &params.sw.kill)
 PARAM_ADD(PARAM_UINT8, sw_clear, &params.sw.record_clear)
 PARAM_ADD(PARAM_UINT8, sw_ss_single, &params.sw.record_snapshot_single)
 PARAM_ADD(PARAM_UINT8, sw_ss_seq, &params.sw.record_snapshot_sequence)
@@ -285,6 +287,13 @@ static enum camera_state_t get_camera_mode(void) {
 
 static void app_periodic(void) {
   static bool in_flight = false;
+
+  // Kill switch
+  if (params.sw.kill) {
+    crtpCommanderHighLevelStop();
+    params.sw.enable = 0;
+    return;
+  }
 
   // Get drone state
   state = visualhoming_get_state();
