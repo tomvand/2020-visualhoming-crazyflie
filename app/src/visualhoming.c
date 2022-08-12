@@ -291,6 +291,7 @@ static void app_periodic(void) {
   // Kill switch
   if (params.sw.kill) {
     crtpCommanderHighLevelStop();
+    in_flight = false;
     params.sw.enable = 0;
     return;
   }
