@@ -50,7 +50,11 @@
 
 
 #ifndef VISUALHOMING_Z
-#define VISUALHOMING_Z 1.0
+#define VISUALHOMING_Z 0.5
+#endif
+
+#ifndef VISUALHOMING_MAX_Z
+#define VISUALHOMING_MAX_Z 1.0
 #endif
 
 #ifndef VISUALHOMING_VREF
@@ -61,9 +65,6 @@
 #define VISUALHOMING_MAX_DIST_FROM_HOME 4.0
 #endif
 
-#ifndef VISUALHOMING_MAX_ALT
-#define VISUALHOMING_MAX_ALT 1.0
-#endif
 
 #ifndef VISUALHOMING_YAW_RAD_SD
 #define VISUALHOMING_YAW_RAD_SD 0.17 // approx 10deg
@@ -103,7 +104,7 @@ static struct params_t {
   float pos_m_sd;
   struct {
     float max_dist_from_home;
-    float max_alt;
+    float max_z;
   } safety;
   struct {
     uint8_t force_yaw;
@@ -127,7 +128,7 @@ PARAM_ADD(PARAM_UINT8, vref, &params.vref)
 PARAM_ADD(PARAM_UINT8, yaw_rad_sd, &params.yaw_rad_sd)
 PARAM_ADD(PARAM_UINT8, pos_m_sd, &params.pos_m_sd)
 PARAM_ADD(PARAM_UINT8, S_max_dist, &params.safety.max_dist_from_home)
-PARAM_ADD(PARAM_UINT8, S_max_alt, &params.safety.max_alt)
+PARAM_ADD(PARAM_UINT8, S_max_alt, &params.safety.max_z)
 PARAM_ADD(PARAM_UINT8, db_yaw, &params.debug.force_yaw)
 PARAM_ADD(PARAM_UINT8, db_pos, &params.debug.force_pos)
 PARAM_GROUP_STOP(vh)
@@ -209,7 +210,7 @@ static void app_init(void) {
   params.pos_m_sd = VISUALHOMING_POS_M_SD;
 
   params.safety.max_dist_from_home = VISUALHOMING_MAX_DIST_FROM_HOME;
-  params.safety.max_alt = VISUALHOMING_MAX_ALT;
+  params.safety.max_z = VISUALHOMING_MAX_Z;
 
   varid.pos_x = logGetVarId("stateEstimate", "x");
   varid.pos_y = logGetVarId("stateEstimate", "y");
@@ -245,7 +246,7 @@ static bool is_safe(void) {
   bool safe = true;
   safe &= params.sw.enable;
   safe &= dist2_home < dist2_thres;
-  safe &= state.pos.u < params.safety.max_alt;
+  safe &= state.pos.u < params.safety.max_z;
   return safe;
 }
 
@@ -291,6 +292,7 @@ static void app_periodic(void) {
   // Flight control
   if (!in_flight) {
     if (is_safe()) { // includes 'enable' switch
+      // TODO reset kalman
       crtpCommanderHighLevelTakeoff(params.z, 1.0);
       vTaskDelay(M2T(1000));
       in_flight = true;
@@ -298,8 +300,9 @@ static void app_periodic(void) {
   } else { // in_flight
     if (!is_safe()) {
       crtpCommanderHighLevelLand(0.0, 1.0);
-      vTaskDelay(M2T(1000));
+      vTaskDelay(M2T(1500));
       crtpCommanderHighLevelStop();
+      params.sw.enable = 0;
       in_flight = false;
     } else { // is_safe
       enum camera_state_t mode = get_camera_mode();
