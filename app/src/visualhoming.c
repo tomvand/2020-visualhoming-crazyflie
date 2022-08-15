@@ -88,13 +88,13 @@ static struct varid_t {
 
 static struct params_t {
   struct {
+    // Switches
     uint8_t enable;
     uint8_t kill;
-    float max_dist_from_home;
-    float max_z;
-  } safety;
+    uint8_t experiment;
+  } sw;
   struct {
-    // Bool switches
+    // Bool buttons
     uint8_t record_clear;
     uint8_t record_snapshot_single;
     uint8_t record_snapshot_sequence;
@@ -104,11 +104,15 @@ static struct params_t {
     uint8_t follow_stay;
     uint8_t follow;
     uint8_t experiment[4];
-  } sw;
-  float z;
-  float vref;
-  float yaw_rad_sd;
-  float pos_m_sd;
+  } btn;
+  struct {
+    float max_dist_from_home;
+    float max_z;
+    float z;
+    float vref;
+    float yaw_rad_sd;
+    float pos_m_sd;
+  } conf;
   struct {
     uint8_t force_yaw;
     uint8_t force_pos;
@@ -117,22 +121,23 @@ static struct params_t {
 
 
 PARAM_GROUP_START(vh)
-PARAM_ADD(PARAM_UINT8,  SW_ENABLE, &params.safety.enable)
-PARAM_ADD(PARAM_UINT8, SW_KILL, &params.safety.kill)
-PARAM_ADD(PARAM_FLOAT, S_max_dist, &params.safety.max_dist_from_home)
-PARAM_ADD(PARAM_FLOAT, S_max_alt, &params.safety.max_z)
-PARAM_ADD(PARAM_UINT8, sw_clear, &params.sw.record_clear)
-PARAM_ADD(PARAM_UINT8, sw_ss_single, &params.sw.record_snapshot_single)
-PARAM_ADD(PARAM_UINT8, sw_ss_seq, &params.sw.record_snapshot_sequence)
-PARAM_ADD(PARAM_UINT8, sw_odo, &params.sw.record_odometry)
-PARAM_ADD(PARAM_UINT8, sw_both_single, &params.sw.record_both_single)
-PARAM_ADD(PARAM_UINT8, sw_both_seq, &params.sw.record_both_sequence)
-PARAM_ADD(PARAM_UINT8, sw_follow_stay, &params.sw.follow_stay)
-PARAM_ADD(PARAM_UINT8, sw_follow, &params.sw.follow)
-PARAM_ADD(PARAM_FLOAT, z, &params.z)
-PARAM_ADD(PARAM_FLOAT, vref, &params.vref)
-PARAM_ADD(PARAM_FLOAT, yaw_rad_sd, &params.yaw_rad_sd)
-PARAM_ADD(PARAM_FLOAT, pos_m_sd, &params.pos_m_sd)
+PARAM_ADD(PARAM_UINT8,  SW_ENABLE, &params.sw.enable)
+PARAM_ADD(PARAM_UINT8, SW_KILL, &params.sw.kill)
+PARAM_ADD(PARAM_FLOAT, S_max_dist, &params.conf.max_dist_from_home)
+PARAM_ADD(PARAM_FLOAT, S_max_alt, &params.conf.max_z)
+PARAM_ADD(PARAM_UINT8, sw_experiment, &params.sw.experiment)
+PARAM_ADD(PARAM_UINT8, btn_clear, &params.btn.record_clear)
+PARAM_ADD(PARAM_UINT8, btn_ss_single, &params.btn.record_snapshot_single)
+PARAM_ADD(PARAM_UINT8, btn_ss_seq, &params.btn.record_snapshot_sequence)
+PARAM_ADD(PARAM_UINT8, btn_odo, &params.btn.record_odometry)
+PARAM_ADD(PARAM_UINT8, btn_both_single, &params.btn.record_both_single)
+PARAM_ADD(PARAM_UINT8, btn_both_seq, &params.btn.record_both_sequence)
+PARAM_ADD(PARAM_UINT8, btn_follow_stay, &params.btn.follow_stay)
+PARAM_ADD(PARAM_UINT8, btn_follow, &params.btn.follow)
+PARAM_ADD(PARAM_FLOAT, conf_z, &params.conf.z)
+PARAM_ADD(PARAM_FLOAT, conf_vref, &params.conf.vref)
+PARAM_ADD(PARAM_FLOAT, conf_yaw_rad_sd, &params.conf.yaw_rad_sd)
+PARAM_ADD(PARAM_FLOAT, conf_pos_m_sd, &params.conf.pos_m_sd)
 PARAM_ADD(PARAM_UINT8, db_yaw, &params.debug.force_yaw)
 PARAM_ADD(PARAM_UINT8, db_pos, &params.debug.force_pos)
 PARAM_GROUP_STOP(vh)
@@ -146,14 +151,14 @@ static struct state_t state;  // Shared state buffer, to avoid repeated fetches.
 
 void visualhoming_set_goal(float n, float e) {
   static float last_n, last_e;
-  if (params.safety.enable) {
+  if (params.sw.enable) {
     if (n != last_n || e != last_e) {
       last_n = n;
       last_e = e;
       float dist = 0;
-      float time = dist / params.vref;
+      float time = dist / params.conf.vref;
       if (time < 1.0f) time = 1.0;
-      crtpCommanderHighLevelGoTo(n, -e, params.z, logGetFloat(varid.att_yaw), time, false);
+      crtpCommanderHighLevelGoTo(n, -e, params.conf.z, logGetFloat(varid.att_yaw), time, false);
     }
   } else {
     crtpCommanderHighLevelDisable();
@@ -165,7 +170,7 @@ void visualhoming_position_update(float dn, float de) {
       .x = state.pos.n + dn,
       .y = -(state.pos.e + de),
       .z = state.pos.u,  // Can only provide all three axes
-      .stdDev = params.pos_m_sd,
+      .stdDev = params.conf.pos_m_sd,
       .source = 99,
   };
   estimatorEnqueuePosition(&pos);
@@ -174,7 +179,7 @@ void visualhoming_position_update(float dn, float de) {
 void visualhoming_heading_update(float dpsi) {
   yawErrorMeasurement_t ye = {
       .yawError = dpsi / 2,
-      .stdDev = params.yaw_rad_sd,
+      .stdDev = params.conf.yaw_rad_sd,
   };
   estimatorEnqueueYawError(&ye);
 }
@@ -206,15 +211,15 @@ struct state_t visualhoming_get_state(void) {
 
 
 static void app_init(void) {
-  params.safety.enable = 0;
-  params.safety.kill = 0;
-  params.safety.max_dist_from_home = VISUALHOMING_MAX_DIST_FROM_HOME;
-  params.safety.max_z = VISUALHOMING_MAX_Z;
+  params.sw.enable = 0;
+  params.sw.kill = 0;
 
-  params.z = VISUALHOMING_Z;
-  params.vref = VISUALHOMING_VREF;
-  params.yaw_rad_sd = VISUALHOMING_YAW_RAD_SD;
-  params.pos_m_sd = VISUALHOMING_POS_M_SD;
+  params.conf.max_dist_from_home = VISUALHOMING_MAX_DIST_FROM_HOME;
+  params.conf.max_z = VISUALHOMING_MAX_Z;
+  params.conf.z = VISUALHOMING_Z;
+  params.conf.vref = VISUALHOMING_VREF;
+  params.conf.yaw_rad_sd = VISUALHOMING_YAW_RAD_SD;
+  params.conf.pos_m_sd = VISUALHOMING_POS_M_SD;
 
   varid.pos_x = logGetVarId("stateEstimate", "x");
   varid.pos_y = logGetVarId("stateEstimate", "y");
@@ -247,38 +252,38 @@ static void app_debug_periodic(void) {
 
 static bool is_safe(void) {
   float dist2_home = state.pos.n * state.pos.n + state.pos.e * state.pos.e;
-  float dist2_thres = params.safety.max_dist_from_home * params.safety.max_dist_from_home;
+  float dist2_thres = params.conf.max_dist_from_home * params.conf.max_dist_from_home;
 
   bool safe = true;
-  safe &= !params.safety.kill;
-  safe &= params.safety.enable;
+  safe &= !params.sw.kill;
+  safe &= params.sw.enable;
   safe &= dist2_home < dist2_thres;
-  safe &= state.pos.u < params.safety.max_z;
+  safe &= state.pos.u < params.conf.max_z;
   return safe;
 }
 
 
 static void handle_switches(enum camera_state_t *cam_state) {
   // Handle camera state switches
-  if (params.sw.record_clear) {
+  if (params.btn.record_clear) {
     *cam_state = RECORD_CLEAR;
-  } else if (params.sw.record_snapshot_single) {
+  } else if (params.btn.record_snapshot_single) {
     *cam_state = RECORD_SNAPSHOT;
-  } else if (params.sw.record_snapshot_sequence) {
+  } else if (params.btn.record_snapshot_sequence) {
     *cam_state = RECORD_SNAPSHOT | RECORD_SEQUENCE;
-  } else if (params.sw.record_odometry) {
+  } else if (params.btn.record_odometry) {
     *cam_state = RECORD_ODOMETRY;
-  } else if (params.sw.record_both_single) {
+  } else if (params.btn.record_both_single) {
     *cam_state = RECORD_SNAPSHOT | RECORD_ODOMETRY;
-  } else if (params.sw.record_both_sequence) {
+  } else if (params.btn.record_both_sequence) {
     *cam_state = RECORD_SNAPSHOT | RECORD_ODOMETRY | RECORD_SEQUENCE;
-  } else if (params.sw.follow_stay) {
+  } else if (params.btn.follow_stay) {
     *cam_state = FOLLOW_STAY;
-  } else if (params.sw.follow) {
+  } else if (params.btn.follow) {
     *cam_state = FOLLOW;
   }
   // Clear switches
-  memset(&params.sw, 0, sizeof(params.sw));
+  memset(&params.btn, 0, sizeof(params.btn));
 }
 
 
@@ -287,10 +292,10 @@ static void app_periodic(void) {
   static enum camera_state_t mode = 0x00;
 
   // Kill switch
-  if (params.safety.kill) {
+  if (params.sw.kill) {
     crtpCommanderHighLevelStop();
     in_flight = false;
-    params.safety.enable = 0;
+    params.sw.enable = 0;
     return;
   }
 
@@ -302,7 +307,7 @@ static void app_periodic(void) {
     if (is_safe()) { // includes 'enable' switch
       paramSetInt(varid.kalman_reset, 1);
       vTaskDelay(M2T(1000));
-      crtpCommanderHighLevelTakeoff(params.z, 1.0);
+      crtpCommanderHighLevelTakeoff(params.conf.z, 1.0);
       vTaskDelay(M2T(1000));
       in_flight = true;
     }
@@ -311,7 +316,7 @@ static void app_periodic(void) {
       crtpCommanderHighLevelLand(0.0, 1.0);
       vTaskDelay(M2T(1500));
       crtpCommanderHighLevelStop();
-      params.safety.enable = 0;
+      params.sw.enable = 0;
       in_flight = false;
     } else { // is_safe
       handle_switches(&mode);
