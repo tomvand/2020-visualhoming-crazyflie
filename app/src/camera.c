@@ -23,17 +23,21 @@ static uint8_t tx_buf[TX_BUF_SIZE];
 static size_t tx_buf_len = 0;
 
 static int check_space(uint8_t n) {
-  return (TX_BUF_SIZE - tx_buf_len);
+  return (TX_BUF_SIZE - tx_buf_len) > 0;
 }
 
 static void send_message(void) {
-  uart2SendDataDmaBlocking(tx_buf_len, tx_buf);
-//  uart2SendData(tx_buf_len, tx_buf);
+  // Do nothing
+}
+
+static void tx_flush(void) {
+//  uart2SendDataDmaBlocking(tx_buf_len, tx_buf); // Crash!
+  uart2SendData(tx_buf_len, tx_buf);
   tx_buf_len = 0;
 }
 
 static void put_char(uint8_t c) {
-  if (tx_buf_len == TX_BUF_SIZE) send_message();
+  if (tx_buf_len == TX_BUF_SIZE) tx_flush();
   tx_buf[tx_buf_len] = c;
   tx_buf_len++;
 }
