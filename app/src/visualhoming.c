@@ -210,16 +210,23 @@ struct state_t visualhoming_get_state(void) {
 ///////////////////////////////////////////////////////////
 
 
-static void experiment_manual_periodic(void) {
-  // Do nothing
+static struct {
+  uint8_t block;
+  uint8_t stage;
+} experiment_state;
+
+
+static void experiment_idle_periodic(void) {
+  experiment_state.block = 0;
+  experiment_state.stage = 0;
 }
+
 
 typedef void (*experiment_fn)(void);
 
 experiment_fn experiment_periodic[] = {
-    experiment_manual_periodic,
+    experiment_idle_periodic,
 };
-
 static const int NUM_EXPERIMENTS = sizeof(experiment_periodic) / sizeof(experiment_periodic[0]);
 
 
@@ -322,6 +329,7 @@ static void app_periodic(void) {
   // Flight control
   if (!in_flight) {
     if (is_safe()) { // includes 'enable' switch
+      params.sw.experiment = 0;
       paramSetInt(varid.kalman_reset, 1);
       vTaskDelay(M2T(1000));
       crtpCommanderHighLevelTakeoff(params.conf.z, 1.0);
