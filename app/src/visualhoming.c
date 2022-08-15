@@ -262,7 +262,7 @@ static void app_debug_periodic(void) {
         .n = 1.0,
         .e = 2.0,
     };
-    visualhoming_position_update(pos_tgt.n - state.pos.n, pos_tgt.e  -state.pos.e);
+    visualhoming_position_update(pos_tgt.n - state.pos.n, pos_tgt.e - state.pos.e);
   }
 }
 
@@ -279,8 +279,8 @@ static bool is_safe(void) {
 }
 
 
-static void handle_switches(enum camera_state_t *cam_state) {
-  // Handle camera state switches
+static void handle_buttons(enum camera_state_t *cam_state) {
+  // Handle camera state buttons
   if (params.btn.record_clear) {
     *cam_state = RECORD_CLEAR;
   } else if (params.btn.record_snapshot_single) {
@@ -298,7 +298,7 @@ static void handle_switches(enum camera_state_t *cam_state) {
   } else if (params.btn.follow) {
     *cam_state = FOLLOW;
   }
-  // Clear switches
+  // Clear buttons
   memset(&params.btn, 0, sizeof(params.btn));
 }
 
@@ -335,7 +335,7 @@ static void app_periodic(void) {
       params.sw.enable = 0;
       in_flight = false;
     } else { // is_safe
-      handle_switches(&mode);
+      handle_buttons(&mode);
       // Run pre-programmed experiments
       if (params.sw.experiment >= 0 && params.sw.experiment < NUM_EXPERIMENTS) {
         experiment_periodic[params.sw.experiment]();
