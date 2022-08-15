@@ -210,6 +210,22 @@ struct state_t visualhoming_get_state(void) {
 ///////////////////////////////////////////////////////////
 
 
+static void experiment_manual_periodic(void) {
+  // Do nothing
+}
+
+typedef void (*experiment_fn)(void);
+
+experiment_fn experiment_periodic[] = {
+    experiment_manual_periodic,
+};
+
+static const int NUM_EXPERIMENTS = sizeof(experiment_periodic) / sizeof(experiment_periodic[0]);
+
+
+///////////////////////////////////////////////////////////
+
+
 static void app_init(void) {
   params.sw.enable = 0;
   params.sw.kill = 0;
@@ -320,6 +336,10 @@ static void app_periodic(void) {
       in_flight = false;
     } else { // is_safe
       handle_switches(&mode);
+      // Run pre-programmed experiments
+      if (params.sw.experiment >= 0 && params.sw.experiment < NUM_EXPERIMENTS) {
+        experiment_periodic[params.sw.experiment]();
+      }
       // Run record/follow functions
       if (mode & 0x10) {
         visualhoming_follow(mode);
