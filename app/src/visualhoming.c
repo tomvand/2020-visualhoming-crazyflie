@@ -229,6 +229,7 @@ static const int NUM_EXPERIMENTS = sizeof(experiment_periodic) / sizeof(experime
 static void app_init(void) {
   params.sw.enable = 0;
   params.sw.kill = 0;
+  params.sw.experiment = 0;
 
   params.conf.max_dist_from_home = VISUALHOMING_MAX_DIST_FROM_HOME;
   params.conf.max_z = VISUALHOMING_MAX_Z;
