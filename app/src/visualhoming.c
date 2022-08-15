@@ -152,7 +152,7 @@ void visualhoming_set_goal(float n, float e) {
       float dist = 0;
       float time = dist / params.vref;
       if (time < 1.0f) time = 1.0;
-      crtpCommanderHighLevelGoTo(n, e, params.z, logGetFloat(varid.att_yaw), time, false);
+      crtpCommanderHighLevelGoTo(n, -e, params.z, logGetFloat(varid.att_yaw), time, false);
     }
   } else {
     crtpCommanderHighLevelDisable();
@@ -258,7 +258,7 @@ static bool is_safe(void) {
 
 static enum camera_state_t get_camera_mode(void) {
   // Handle param switches
-  static enum camera_state_t mode;
+  static enum camera_state_t mode = 0x00;
   if (params.sw.record_clear) {
     params.sw.record_clear = 0;
     mode = RECORD_CLEAR;
