@@ -81,7 +81,7 @@ static void camera_receive(void) {
 // External functions /////////////////////////////////////
 
 void visualhoming_common_init(void) {
-  // Do nothing for now
+  vector.is_new = false;
 }
 
 

@@ -19,6 +19,9 @@ upload:
 	cd app && $(MAKE) CRAZYFLIE_BASE=$(CRAZYFLIE_BASE) CLOAD_CMDS=$(CLOAD_CMDS) cload
 .PHONY: upload
 
+run:
+	python -m client.client
+
 clean:
 	rm -r app/src/pprzlink
 	cd app && $(MAKE) CRAZYFLIE_BASE=$(CRAZYFLIE_BASE) clean
