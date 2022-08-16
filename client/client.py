@@ -76,6 +76,8 @@ class Client(tk.Tk):
             label = f'Exp {i}'
             if i == 0:
                 label = 'Idle'
+            elif i == 1:
+                label = 'Fake\nhome'
             self.experiment_button = tk.Button(self, text=label)
             self.experiment_button['command'] = lambda: self.experiment_btn_clicked(i)
             self.experiment_button.grid(row=i // 2, column=3 + (i % 2), sticky=tk.NSEW)
