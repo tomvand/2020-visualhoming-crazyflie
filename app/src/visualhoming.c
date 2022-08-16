@@ -287,12 +287,51 @@ static void experiment_fake_homing_periodic(void) {
   }
 }
 
+static void experiment_single_snapshot_periodic(void) {
+  switch (experiment_state.block) {
+    case 0:  // Go to homing position
+      visualhoming_set_goal(0, 0);
+      if (dist2_to(0, 0) > 0.30f * 0.30f) break;
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 1:  // Take snapshot
+      params.btn.record_snapshot_single = 1;
+      next_block();
+      break;
+    case 2:  // Take snapshot (wait)
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 3:  // Go to start position
+      visualhoming_set_goal(0, -2);
+      if (dist2_to(0, -2) > 0.30f * 0.30f) break;
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 4:  // Homing
+      params.btn.follow = 1;
+      next_block();
+      break;
+    case 5:  // Homing (wait)
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 10.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 6:  // Reset
+      experiment_state.block = 0;
+      break;
+    default:
+      break;
+  }
+}
+
 
 typedef void (*experiment_fn)(void);
 
 experiment_fn experiment_periodic_fn[] = {
     experiment_idle_periodic,
     experiment_fake_homing_periodic,
+    experiment_single_snapshot_periodic,
 };
 static const int NUM_EXPERIMENTS = sizeof(experiment_periodic_fn) / sizeof(experiment_periodic_fn[0]);
 
