@@ -301,6 +301,7 @@ static void experiment_periodic(void) {
   if (params.sw.experiment >= 0 && params.sw.experiment < NUM_EXPERIMENTS) {
     if (params.sw.experiment != experiment_state.experiment) {
       memset(&experiment_state, 0, sizeof(experiment_state));
+      experiment_state.experiment = params.sw.experiment;
     }
     experiment_periodic_fn[params.sw.experiment]();
   }
