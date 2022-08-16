@@ -39,9 +39,11 @@ class Client(tk.Tk):
         # Start ZMQ
         self.zmq = CFZmq()
 
-        # Make bigger
-        columns = 5
+        # configure grid
         rows = 2
+        num_experiments = 6
+        experiment_cols = int(num_experiments / 2 + 0.999)
+        columns = 3 + experiment_cols
         grid_size = 100
         width = columns * grid_size
         height = rows * grid_size
@@ -72,7 +74,7 @@ class Client(tk.Tk):
 
         # Create experiment buttons
         self.experiment_button = []
-        for i in range(4):
+        for i in range(num_experiments):
             label = f'Exp {i}'
             if i == 0:
                 label = 'Idle'
@@ -80,7 +82,7 @@ class Client(tk.Tk):
                 label = 'Fake\nhome'
             self.experiment_button = tk.Button(self, text=label)
             self.experiment_button['command'] = lambda x=i: self.experiment_btn_clicked(x)
-            self.experiment_button.grid(row=i // 2, column=3 + (i % 2), sticky=tk.NSEW)
+            self.experiment_button.grid(row=i // experiment_cols, column=3 + (i % experiment_cols), sticky=tk.NSEW)
 
     def __del__(self):
         try:
