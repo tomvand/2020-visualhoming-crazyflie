@@ -211,23 +211,33 @@ struct state_t visualhoming_get_state(void) {
 
 
 static struct {
+  uint8_t experiment;
   uint8_t block;
   uint8_t stage;
 } experiment_state;
 
 
 static void experiment_idle_periodic(void) {
-  experiment_state.block = 0;
-  experiment_state.stage = 0;
+  // Do nothing
 }
 
 
 typedef void (*experiment_fn)(void);
 
-experiment_fn experiment_periodic[] = {
+experiment_fn experiment_periodic_fn[] = {
     experiment_idle_periodic,
 };
-static const int NUM_EXPERIMENTS = sizeof(experiment_periodic) / sizeof(experiment_periodic[0]);
+static const int NUM_EXPERIMENTS = sizeof(experiment_periodic_fn) / sizeof(experiment_periodic_fn[0]);
+
+
+static void experiment_periodic(void) {
+  if (params.sw.experiment >= 0 && params.sw.experiment < NUM_EXPERIMENTS) {
+    if (params.sw.experiment != experiment_state.experiment) {
+      memset(experiment_state, 0, sizeof(experiment_state));
+    }
+    experiment_periodic_fn[params.sw.experiment]();
+  }
+}
 
 
 ///////////////////////////////////////////////////////////
@@ -346,9 +356,7 @@ static void app_periodic(void) {
     } else { // is_safe
       handle_buttons(&mode);
       // Run pre-programmed experiments
-      if (params.sw.experiment >= 0 && params.sw.experiment < NUM_EXPERIMENTS) {
-        experiment_periodic[params.sw.experiment]();
-      }
+      experiment_periodic();
       // Run record/follow functions
       if (mode & 0x10) {
         visualhoming_follow(mode);
