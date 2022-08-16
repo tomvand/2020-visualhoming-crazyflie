@@ -117,6 +117,7 @@ static struct params_t {
   struct {
     uint8_t force_yaw;
     uint8_t force_pos;
+    uint8_t dry_run;
   } debug;
 } params;
 
@@ -141,6 +142,7 @@ PARAM_ADD(PARAM_FLOAT, conf_yaw_rad_sd, &params.conf.yaw_rad_sd)
 PARAM_ADD(PARAM_FLOAT, conf_pos_m_sd, &params.conf.pos_m_sd)
 PARAM_ADD(PARAM_UINT8, db_yaw, &params.debug.force_yaw)
 PARAM_ADD(PARAM_UINT8, db_pos, &params.debug.force_pos)
+PARAM_ADD(PARAM_UINT8, db_dryrun, &params.debug.dry_run)
 PARAM_GROUP_STOP(vh)
 
 
@@ -150,19 +152,43 @@ static struct state_t state;  // Shared state buffer, to avoid repeated fetches.
 ///////////////////////////////////////////////////////////
 
 
-void visualhoming_set_goal(float n, float e) {
-  static float last_n, last_e;
+static void armedGoTo(const float x, const float y, const float z, const float yaw, const float duration_s, const bool relative) {
   if (params.sw.enable) {
-    if (n != last_n || e != last_e) {
-      last_n = n;
-      last_e = e;
-      float dist = 0;
-      float time = dist / params.conf.vref;
-      if (time < 1.0f) time = 1.0;
-      crtpCommanderHighLevelGoTo(n, -e, params.conf.z, 0.0, time, false);
-    }
+    crtpCommanderHighLevelGoTo(x, y, z, yaw, duration_s, relative);
   } else {
     crtpCommanderHighLevelDisable();
+  }
+}
+
+static void armedTakeoff(const float absoluteHeight_m, const float duration_s) {
+  if (params.sw.enable) {
+    crtpCommanderHighLevelTakeoff(absoluteHeight_m, duration_s);
+  } else {
+    crtpCommanderHighLevelDisable();
+  }
+}
+
+static void armedLand(const float absoluteHeight_m, const float duration_s) {
+  if (params.sw.enable) {
+    crtpCommanderHighLevelLand(absoluteHeight_m, duration_s);
+  } else {
+    crtpCommanderHighLevelDisable();
+  }
+}
+
+
+///////////////////////////////////////////////////////////
+
+
+void visualhoming_set_goal(float n, float e) {
+  static float last_n, last_e;
+  if (n != last_n || e != last_e) {
+    last_n = n;
+    last_e = e;
+    float dist = 0;
+    float time = dist / params.conf.vref;
+    if (time < 1.0f) time = 1.0;
+    armedGoTo(n, -e, params.conf.z, 0.0, time, false);
   }
 }
 
@@ -398,7 +424,7 @@ static bool is_safe(void) {
 
   bool safe = true;
   safe &= !params.sw.kill;
-  safe &= params.sw.enable;
+  safe &= params.sw.enable || (params.debug.dry_run && !params.sw.enable);
   safe &= dist2_home < dist2_thres;
   safe &= state.pos.u < params.conf.max_z;
   return safe;
@@ -450,13 +476,13 @@ static void app_periodic(void) {
       params.sw.experiment = 0;
       paramSetInt(varid.kalman_reset, 1);
       vTaskDelay(M2T(1000));
-      crtpCommanderHighLevelTakeoff(params.conf.z, 1.0);
+      armedTakeoff(params.conf.z, 1.0);
       vTaskDelay(M2T(1000));
       in_flight = true;
     }
   } else { // in_flight
     if (!is_safe()) {
-      crtpCommanderHighLevelLand(0.0, 1.0);
+      armedLand(0.0, 1.0);
       vTaskDelay(M2T(1500));
       crtpCommanderHighLevelStop();
       params.sw.enable = 0;
