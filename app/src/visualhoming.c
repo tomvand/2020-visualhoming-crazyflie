@@ -159,7 +159,7 @@ void visualhoming_set_goal(float n, float e) {
       float dist = 0;
       float time = dist / params.conf.vref;
       if (time < 1.0f) time = 1.0;
-      crtpCommanderHighLevelGoTo(n, -e, params.conf.z, logGetFloat(varid.att_yaw), time, false);
+      crtpCommanderHighLevelGoTo(n, -e, params.conf.z, 0.0, time, false);
     }
   } else {
     crtpCommanderHighLevelDisable();

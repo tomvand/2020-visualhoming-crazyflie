@@ -79,7 +79,7 @@ class Client(tk.Tk):
             elif i == 1:
                 label = 'Fake\nhome'
             self.experiment_button = tk.Button(self, text=label)
-            self.experiment_button['command'] = lambda: self.experiment_btn_clicked(i)
+            self.experiment_button['command'] = lambda x=i: self.experiment_btn_clicked(x)
             self.experiment_button.grid(row=i // 2, column=3 + (i % 2), sticky=tk.NSEW)
 
     def __del__(self):
