@@ -74,7 +74,7 @@ static struct message_buffer_t {
 } message_buffer;
 
 static void new_message_cb(uint8_t sender_id, uint8_t receiver_id, uint8_t class_id, uint8_t message_id, uint8_t *buf, void *user_data) {
-  DEBUG_PRINT("New pprz message id %d\n", message_id);
+//  DEBUG_PRINT("New pprz message id %d\n", message_id);
   switch (message_id) {
     case PPRZ_MSG_ID_VISUALHOMING_COMMAND:
       message_buffer.is_new = true;
@@ -127,7 +127,7 @@ void camera_init(void) {
 }
 
 void visualhoming_camera_send(vh_msg_t *camera_msg) {
-  DEBUG_PRINT("Sending message type %d\n", camera_msg->type);
+//  DEBUG_PRINT("Sending message type %d\n", camera_msg->type);
   switch (camera_msg->type) {
     case VH_MSG_COMMAND:
       pprzlink_msg_send_VISUALHOMING_COMMAND(&dev_tx, 0, 0,
