@@ -318,6 +318,7 @@ static void experiment_single_snapshot_periodic(void) {
       if (usecTimestamp() > experiment_state.timer) next_block();
       break;
     case 6:  // Reset
+      params.btn.record_clear = 1;
       experiment_state.block = 0;
       break;
     default:
