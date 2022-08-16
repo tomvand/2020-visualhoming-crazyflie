@@ -39,6 +39,7 @@
 #include "app.h"
 #include "crtp_commander_high_level.h"
 #include "estimator.h"
+#include "usec_time.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -121,7 +122,7 @@ static struct params_t {
 
 
 PARAM_GROUP_START(vh)
-PARAM_ADD(PARAM_UINT8,  SW_ENABLE, &params.sw.enable)
+PARAM_ADD(PARAM_UINT8, SW_ENABLE, &params.sw.enable)
 PARAM_ADD(PARAM_UINT8, SW_KILL, &params.sw.kill)
 PARAM_ADD(PARAM_FLOAT, S_max_dist, &params.conf.max_dist_from_home)
 PARAM_ADD(PARAM_FLOAT, S_max_alt, &params.conf.max_z)
@@ -210,15 +211,80 @@ struct state_t visualhoming_get_state(void) {
 ///////////////////////////////////////////////////////////
 
 
+static float dist2_to(float n, float e) {
+  float dn = n - state.pos.n;
+  float de = e - state.pos.e;
+  return dn * dn + de * de;
+}
+
+
 static struct {
   uint8_t experiment;
   uint8_t block;
   uint8_t stage;
+  uint64_t timer;
 } experiment_state;
+
+
+static void next_block(void) {
+  experiment_state.block++;
+  experiment_state.stage = 0;
+  experiment_state.timer = 0;
+}
 
 
 static void experiment_idle_periodic(void) {
   // Do nothing
+}
+
+static struct pos3f_t fake_vector(float n_home, float e_home) {
+  // Calculate fake homing vector
+  struct pos3f_t rel_pos = {
+      .n = state.pos.n - n_home,
+      .e = state.pos.e - e_home
+  };
+  struct pos3f_t vector = {
+      .n = -0.2f * rel_pos.n,
+      .e = 0.2f * rel_pos.n - 0.5f * rel_pos.e,
+  };
+  float norm = sqrtf(vector.n * vector.n + vector.e * vector.e);
+  float scale = norm < 0.2f ? 1.0f : 0.2f / norm;
+  vector.n *= scale;
+  vector.e *= scale;
+  // Transform to global coordinates
+  struct pos3f_t to = {
+      .n = state.pos.n + vector.n,
+      .e = state.pos.e + vector.e,
+  };
+  return to;
+}
+
+static void experiment_fake_homing_periodic(void) {
+  switch (experiment_state.block) {
+    case 0:  // Go to homing position
+      visualhoming_set_goal(0, 0);
+      if (dist2_to(0, 0) > 0.30f * 0.30f) break;
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 1:  // Go to start position
+      visualhoming_set_goal(0, -2);
+      if (dist2_to(0, -2) > 0.30f * 0.30f) break;
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 2:  // Fake homing
+      struct pos3f_t to = fake_vector(0, 0);
+      visualhoming_set_goal(to.n, to.e);
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 10.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 3:  // Reset
+      experiment_state.block = 0;
+      break;
+    default:
+      break;
+  }
 }
 
 
@@ -226,6 +292,7 @@ typedef void (*experiment_fn)(void);
 
 experiment_fn experiment_periodic_fn[] = {
     experiment_idle_periodic,
+    experiment_fake_homing_periodic,
 };
 static const int NUM_EXPERIMENTS = sizeof(experiment_periodic_fn) / sizeof(experiment_periodic_fn[0]);
 
@@ -233,7 +300,7 @@ static const int NUM_EXPERIMENTS = sizeof(experiment_periodic_fn) / sizeof(exper
 static void experiment_periodic(void) {
   if (params.sw.experiment >= 0 && params.sw.experiment < NUM_EXPERIMENTS) {
     if (params.sw.experiment != experiment_state.experiment) {
-      memset(experiment_state, 0, sizeof(experiment_state));
+      memset(&experiment_state, 0, sizeof(experiment_state));
     }
     experiment_periodic_fn[params.sw.experiment]();
   }
