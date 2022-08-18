@@ -26,14 +26,14 @@ static int check_space(uint8_t n) {
   return (TX_BUF_SIZE - tx_buf_len) > 0;
 }
 
-static void send_message(void) {
-  // Do nothing
-}
-
 static void tx_flush(void) {
 //  uart2SendDataDmaBlocking(tx_buf_len, tx_buf); // Crash!
   uart2SendData(tx_buf_len, tx_buf);
   tx_buf_len = 0;
+}
+
+static void send_message(void) {
+  tx_flush();
 }
 
 static void put_char(uint8_t c) {
