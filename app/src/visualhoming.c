@@ -169,7 +169,7 @@ static void armedTakeoff(const float absoluteHeight_m, const float duration_s) {
 }
 
 static void armedLand(const float absoluteHeight_m, const float duration_s) {
-  if (params.sw.enable) {
+  if (!params.debug.dry_run) {  // Not ideal
     crtpCommanderHighLevelLand(absoluteHeight_m, duration_s);
   } else {
     crtpCommanderHighLevelDisable();
