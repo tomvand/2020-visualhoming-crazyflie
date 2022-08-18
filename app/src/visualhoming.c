@@ -189,7 +189,7 @@ void visualhoming_set_goal(float n, float e) {
     float de = e - state.pos.e;
     float dist = sqrtf(dn* dn + de * de);
     float time = dist / params.conf.vref;
-    if (time < 1.0f) time = 1.0;
+    if (time < 0.1f) time = 0.1;
     armedGoTo(n, -e, params.conf.z, 0.0, time, false);
   }
 }
