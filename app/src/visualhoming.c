@@ -185,7 +185,9 @@ void visualhoming_set_goal(float n, float e) {
   if (n != last_n || e != last_e) {
     last_n = n;
     last_e = e;
-    float dist = 0;
+    float dn = n - state.pos.n;
+    float de = e - state.pos.e;
+    float dist = sqrtf(dn* dn + de * de);
     float time = dist / params.conf.vref;
     if (time < 1.0f) time = 1.0;
     armedGoTo(n, -e, params.conf.z, 0.0, time, false);
