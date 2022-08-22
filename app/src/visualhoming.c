@@ -38,6 +38,7 @@
 
 #include "app.h"
 #include "crtp_commander_high_level.h"
+#include "commander.h"
 #include "estimator.h"
 #include "usec_time.h"
 
@@ -60,6 +61,10 @@
 
 #ifndef VISUALHOMING_VREF
 #define VISUALHOMING_VREF 1.0
+#endif
+
+#ifndef VISUALHOMING_P_GAIN
+#define VISUALHOMING_P_GAIN 1.0  // (m/s)/m
 #endif
 
 #ifndef VISUALHOMING_MAX_DIST_FROM_HOME
@@ -111,6 +116,7 @@ static struct params_t {
     float max_z;
     float z;
     float vref;
+    float p_gain;
     float yaw_rad_sd;
     float pos_m_sd;
   } conf;
@@ -138,6 +144,7 @@ PARAM_ADD(PARAM_UINT8, btn_follow_stay, &params.btn.follow_stay)
 PARAM_ADD(PARAM_UINT8, btn_follow, &params.btn.follow)
 PARAM_ADD(PARAM_FLOAT, conf_z, &params.conf.z)
 PARAM_ADD(PARAM_FLOAT, conf_vref, &params.conf.vref)
+PARAM_ADD(PARAM_FLOAT, conf_p_gain, &params.conf.p_gain)
 PARAM_ADD(PARAM_FLOAT, conf_yaw_rad_sd, &params.conf.yaw_rad_sd)
 PARAM_ADD(PARAM_FLOAT, conf_pos_m_sd, &params.conf.pos_m_sd)
 PARAM_ADD(PARAM_UINT8, db_yaw, &params.debug.force_yaw)
@@ -152,9 +159,23 @@ static struct state_t state;  // Shared state buffer, to avoid repeated fetches.
 ///////////////////////////////////////////////////////////
 
 
+static struct {
+  bool low_level;
+  struct {
+    float x;
+    float y;
+    float z;
+  } setpoint;
+} control;
+
+
+
 static void armedGoTo(const float x, const float y, const float z, const float yaw, const float duration_s, const bool relative) {
   if (params.sw.enable) {
-    crtpCommanderHighLevelGoTo(x, y, z, yaw, duration_s, relative);
+    control.low_level = true;
+    control.setpoint.x = x;
+    control.setpoint.y = y;
+    control.setpoint.z = z;
   } else {
     crtpCommanderHighLevelDisable();
   }
@@ -162,6 +183,10 @@ static void armedGoTo(const float x, const float y, const float z, const float y
 
 static void armedTakeoff(const float absoluteHeight_m, const float duration_s) {
   if (params.sw.enable) {
+    if (control.low_level) {
+      commanderRelaxPriority();
+      control.low_level = false;
+    }
     crtpCommanderHighLevelTakeoff(absoluteHeight_m, duration_s);
   } else {
     crtpCommanderHighLevelDisable();
@@ -170,9 +195,43 @@ static void armedTakeoff(const float absoluteHeight_m, const float duration_s) {
 
 static void armedLand(const float absoluteHeight_m, const float duration_s) {
   if (!params.debug.dry_run) {  // Not ideal
+    if (control.low_level) {
+      commanderRelaxPriority();
+      control.low_level = false;
+    }
     crtpCommanderHighLevelLand(absoluteHeight_m, duration_s);
   } else {
     crtpCommanderHighLevelDisable();
+  }
+}
+
+
+static void control_periodic(void) {
+  if (control.low_level) {
+    float x = logGetFloat(varid.pos_x);
+    float y = logGetFloat(varid.pos_y);
+    float z = logGetFloat(varid.pos_z);
+    float vx = control.setpoint.x - x;
+    float vy = control.setpoint.y - y;
+    float vz = control.setpoint.z - z;
+    vx *= params.conf.p_gain;
+    vy *= params.conf.p_gain;
+    vz *= params.conf.p_gain;
+    float vnorm = sqrtf(vx * vx + vy * vy + vz * vz);
+    float scale = vnorm < params.conf.vref ? 1.0f : params.conf.vref / vnorm;
+    vx *= scale;
+    vy *= scale;
+    vz *= scale;
+
+    static setpoint_t setpoint;  // Initialized 0
+    setpoint.mode.x = modeVelocity;
+    setpoint.mode.y = modeVelocity;
+    setpoint.mode.z = modeVelocity;
+    setpoint.velocity.x = vx;
+    setpoint.velocity.y = vy;
+    setpoint.velocity.z = vz;
+    setpoint.velocity_body = false;
+    commanderSetSetpoint(&setpoint, COMMANDER_PRIORITY_EXTRX);
   }
 }
 
@@ -618,6 +677,7 @@ static void app_periodic(void) {
         visualhoming_record(mode);
       }
       visualhoming_common_periodic();
+      control_periodic();
     }
   }
 }
