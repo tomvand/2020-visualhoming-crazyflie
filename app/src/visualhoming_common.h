@@ -11,6 +11,10 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
+struct pos2f_t {
+  float n;
+  float e;
+};
 
 struct pos3f_t {
   float n;
@@ -55,21 +59,29 @@ struct msg_command_t {
 
 struct msg_vector_t {
   uint8_t source;
-  struct pos3f_t to;
-  struct pos3f_t from;
+  struct pos2f_t to;
+  struct pos2f_t from;
   float delta_psi;
 };
 
 struct msg_ins_correction_t {
   uint16_t idx;
-  struct pos3f_t from;
-  struct pos3f_t to;
+  struct pos2f_t from;
+  struct pos2f_t to;
   float psi_from;
   float psi_to;
 };
 
 struct msg_state_t {
   struct state_t state;
+};
+
+struct msg_map_t {
+  uint8_t snapshot_idx;
+  struct pos2f_t snapshot_pos;
+  uint8_t odometry_idx;
+  struct pos2f_t odometry_pos;
+  // TODO snapshot data
 };
 
 typedef struct {
@@ -79,6 +91,7 @@ typedef struct {
     struct msg_vector_t         vector;
     struct msg_ins_correction_t ins_correction;
     struct msg_state_t          state;
+    struct msg_map_t            map;
   };
 } vh_msg_t;
 

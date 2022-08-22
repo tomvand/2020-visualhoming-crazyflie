@@ -38,6 +38,7 @@
 
 #include "app.h"
 #include "crtp_commander_high_level.h"
+#include "commander.h"
 #include "estimator.h"
 #include "usec_time.h"
 
@@ -60,6 +61,10 @@
 
 #ifndef VISUALHOMING_VREF
 #define VISUALHOMING_VREF 1.0
+#endif
+
+#ifndef VISUALHOMING_P_GAIN
+#define VISUALHOMING_P_GAIN 1.0  // (m/s)/m
 #endif
 
 #ifndef VISUALHOMING_MAX_DIST_FROM_HOME
@@ -111,6 +116,7 @@ static struct params_t {
     float max_z;
     float z;
     float vref;
+    float p_gain;
     float yaw_rad_sd;
     float pos_m_sd;
   } conf;
@@ -138,6 +144,7 @@ PARAM_ADD(PARAM_UINT8, btn_follow_stay, &params.btn.follow_stay)
 PARAM_ADD(PARAM_UINT8, btn_follow, &params.btn.follow)
 PARAM_ADD(PARAM_FLOAT, conf_z, &params.conf.z)
 PARAM_ADD(PARAM_FLOAT, conf_vref, &params.conf.vref)
+PARAM_ADD(PARAM_FLOAT, conf_p_gain, &params.conf.p_gain)
 PARAM_ADD(PARAM_FLOAT, conf_yaw_rad_sd, &params.conf.yaw_rad_sd)
 PARAM_ADD(PARAM_FLOAT, conf_pos_m_sd, &params.conf.pos_m_sd)
 PARAM_ADD(PARAM_UINT8, db_yaw, &params.debug.force_yaw)
@@ -152,9 +159,23 @@ static struct state_t state;  // Shared state buffer, to avoid repeated fetches.
 ///////////////////////////////////////////////////////////
 
 
+static struct {
+  bool low_level;
+  struct {
+    float x;
+    float y;
+    float z;
+  } setpoint;
+} control;
+
+
+
 static void armedGoTo(const float x, const float y, const float z, const float yaw, const float duration_s, const bool relative) {
   if (params.sw.enable) {
-    crtpCommanderHighLevelGoTo(x, y, z, yaw, duration_s, relative);
+    control.low_level = true;
+    control.setpoint.x = x;
+    control.setpoint.y = y;
+    control.setpoint.z = z;
   } else {
     crtpCommanderHighLevelDisable();
   }
@@ -162,6 +183,10 @@ static void armedGoTo(const float x, const float y, const float z, const float y
 
 static void armedTakeoff(const float absoluteHeight_m, const float duration_s) {
   if (params.sw.enable) {
+    if (control.low_level) {
+      commanderRelaxPriority();
+      control.low_level = false;
+    }
     crtpCommanderHighLevelTakeoff(absoluteHeight_m, duration_s);
   } else {
     crtpCommanderHighLevelDisable();
@@ -170,6 +195,10 @@ static void armedTakeoff(const float absoluteHeight_m, const float duration_s) {
 
 static void armedLand(const float absoluteHeight_m, const float duration_s) {
   if (!params.debug.dry_run) {  // Not ideal
+    if (control.low_level) {
+      commanderRelaxPriority();
+      control.low_level = false;
+    }
     crtpCommanderHighLevelLand(absoluteHeight_m, duration_s);
   } else {
     crtpCommanderHighLevelDisable();
@@ -177,7 +206,53 @@ static void armedLand(const float absoluteHeight_m, const float duration_s) {
 }
 
 
+static void control_periodic(void) {
+  if (control.low_level) {
+    static setpoint_t setpoint;  // Initialized 0
+    setpoint.mode.x = modeAbs;
+    setpoint.mode.y = modeAbs;
+    setpoint.mode.z = modeAbs;
+    setpoint.position.x = control.setpoint.x;
+    setpoint.position.y = control.setpoint.y;
+    setpoint.position.z = control.setpoint.z;
+    commanderSetSetpoint(&setpoint, COMMANDER_PRIORITY_EXTRX);
+  }
+}
+
+
 ///////////////////////////////////////////////////////////
+
+
+static struct {
+  struct msg_vector_t vector;
+  struct msg_ins_correction_t ins_correction;
+  struct msg_map_t map;
+  struct pos2f_t pos;
+} log_buffer;
+
+LOG_GROUP_START(vh)
+LOG_ADD(LOG_FLOAT, v_from_e, &log_buffer.vector.from.e)
+LOG_ADD(LOG_FLOAT, v_from_n, &log_buffer.vector.from.n)
+LOG_ADD(LOG_FLOAT, v_to_e, &log_buffer.vector.to.e)
+LOG_ADD(LOG_FLOAT, v_to_n, &log_buffer.vector.to.n)
+LOG_ADD(LOG_FLOAT, v_pos_e, &log_buffer.pos.e)
+LOG_ADD(LOG_FLOAT, v_pos_n, &log_buffer.pos.n)
+LOG_ADD(LOG_FLOAT, v_dpsi, &log_buffer.vector.delta_psi)
+LOG_ADD(LOG_UINT8, v_source, &log_buffer.vector.source)
+LOG_ADD(LOG_UINT8, m_ss_idx, &log_buffer.map.snapshot_idx)
+LOG_ADD(LOG_FLOAT, m_ss_e, &log_buffer.map.snapshot_pos.e)
+LOG_ADD(LOG_FLOAT, m_ss_n, &log_buffer.map.snapshot_pos.n)
+LOG_ADD(LOG_UINT8, m_odo_idx, &log_buffer.map.odometry_idx)
+LOG_ADD(LOG_FLOAT, m_odo_e, &log_buffer.map.odometry_pos.e)
+LOG_ADD(LOG_FLOAT, m_odo_n, &log_buffer.map.odometry_pos.n)
+LOG_ADD(LOG_UINT8, i_ss_idx, &log_buffer.ins_correction.idx)
+LOG_ADD(LOG_FLOAT, i_from_e, &log_buffer.ins_correction.from.e)
+LOG_ADD(LOG_FLOAT, i_from_n, &log_buffer.ins_correction.from.n)
+LOG_ADD(LOG_FLOAT, i_from_psi, &log_buffer.ins_correction.psi_from)
+LOG_ADD(LOG_FLOAT, i_to_e, &log_buffer.ins_correction.to.e)
+LOG_ADD(LOG_FLOAT, i_to_n, &log_buffer.ins_correction.to.n)
+LOG_ADD(LOG_FLOAT, i_to_psi, &log_buffer.ins_correction.psi_to)
+LOG_GROUP_STOP(vh)
 
 
 void visualhoming_set_goal(float n, float e) {
@@ -216,7 +291,15 @@ void visualhoming_heading_update(float dpsi) {
 void visualhoming_log(vh_msg_t *log_msg) {
   switch (log_msg->type) {
     case VH_MSG_VECTOR:
-      DEBUG_PRINT("Vector received!\n");
+      log_buffer.vector = log_msg->vector;
+      log_buffer.pos.e = state.pos.e;
+      log_buffer.pos.n = state.pos.n;
+      break;
+    case VH_MSG_INS_CORRECTION:
+      log_buffer.ins_correction = log_msg->ins_correction;
+      break;
+    case VH_MSG_MAP:
+      log_buffer.map = log_msg->map;
       break;
     default:
       break;
@@ -618,6 +701,7 @@ static void app_periodic(void) {
         visualhoming_record(mode);
       }
       visualhoming_common_periodic();
+      control_periodic();
     }
   }
 }
@@ -634,4 +718,3 @@ void appMain() {
     vTaskDelayUntil(&xLastWakeTime, xPeriod);
   }
 }
-

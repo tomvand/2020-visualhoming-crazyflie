@@ -102,8 +102,17 @@ static void new_message_cb(uint8_t sender_id, uint8_t receiver_id, uint8_t class
       message_buffer.msg.ins_correction.psi_from = pprzlink_get_VISUALHOMING_INS_CORRECTION_psi_from(buf);
       message_buffer.msg.ins_correction.psi_to = pprzlink_get_VISUALHOMING_INS_CORRECTION_psi_to(buf);
       break;
-    case PPRZ_MSG_ID_VISUALHOMING_CAMERA:
     case PPRZ_MSG_ID_VISUALHOMING_MAP:
+      message_buffer.is_new = true;
+      message_buffer.msg.type = VH_MSG_MAP;
+      message_buffer.msg.map.snapshot_idx = pprzlink_get_VISUALHOMING_MAP_snapshot_index(buf);
+      message_buffer.msg.map.snapshot_pos.e = pprzlink_get_VISUALHOMING_MAP_snapshot_e(buf);
+      message_buffer.msg.map.snapshot_pos.n = pprzlink_get_VISUALHOMING_MAP_snapshot_n(buf);
+      message_buffer.msg.map.odometry_idx = pprzlink_get_VISUALHOMING_MAP_odometry_index(buf);
+      message_buffer.msg.map.odometry_pos.e = pprzlink_get_VISUALHOMING_MAP_odometry_e(buf);
+      message_buffer.msg.map.odometry_pos.n = pprzlink_get_VISUALHOMING_MAP_odometry_n(buf);
+      break;
+    case PPRZ_MSG_ID_VISUALHOMING_CAMERA:
       break; // TODO
     default:
       break;
