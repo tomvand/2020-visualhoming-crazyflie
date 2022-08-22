@@ -76,6 +76,14 @@ struct msg_state_t {
   struct state_t state;
 };
 
+struct msg_map_t {
+  uint8_t snapshot_idx;
+  struct pos2f_t snapshot_pos;
+  uint8_t odometry_idx;
+  struct pos2f_t odometry_pos;
+  // TODO snapshot data
+};
+
 typedef struct {
   uint8_t type;
   union {
@@ -83,6 +91,7 @@ typedef struct {
     struct msg_vector_t         vector;
     struct msg_ins_correction_t ins_correction;
     struct msg_state_t          state;
+    struct msg_map_t            map;
   };
 } vh_msg_t;
 
