@@ -223,6 +223,54 @@ static void control_periodic(void) {
 ///////////////////////////////////////////////////////////
 
 
+static struct {
+  struct {
+    struct pos2f_t from;
+    struct pos2f_t to;
+    struct pos2f_t pos;
+    float delta_yaw;
+    uint8_t source;
+  } vector;
+  struct {
+    uint8_t snapshot_index;
+    struct pos2f_t snapshot_pos;
+    uint8_t odometry_index;
+    struct pos2f_t odometry_pos;
+  } map;
+  struct {
+    uint8_t snapshot_index;
+    struct pos2f_t from;
+    float psi_from;
+    struct pos2f_t to;
+    float psi_to;
+  } ins_correction;
+} log_buffer;
+
+LOG_GROUP_START(vh)
+LOG_ADD(LOG_FLOAT, v_from_e, &log_buffer.vector.from.e)
+LOG_ADD(LOG_FLOAT, v_from_n, &log_buffer.vector.from.n)
+LOG_ADD(LOG_FLOAT, v_to_e, &log_buffer.vector.to.e)
+LOG_ADD(LOG_FLOAT, v_to_n, &log_buffer.vector.to.n)
+LOG_ADD(LOG_FLOAT, v_pos_e, &log_buffer.vector.pos.e)
+LOG_ADD(LOG_FLOAT, v_pos_n, &log_buffer.vector.pos.n)
+LOG_ADD(LOG_FLOAT, v_dpsi, &log_buffer.vector.delta_yaw)
+LOG_ADD(LOG_UINT8, v_source, &log_buffer.vector.source)
+LOG_ADD(LOG_UINT8, m_ss_idx, &log_buffer.map.snapshot_index)
+LOG_ADD(LOG_FLOAT, m_ss_e, &log_buffer.map.snapshot_pos.e)
+LOG_ADD(LOG_FLOAT, m_ss_n, &log_buffer.map.snapshot_pos.n)
+LOG_ADD(LOG_UINT8, m_odo_idx, &log_buffer.map.odometry_index)
+LOG_ADD(LOG_FLOAT, m_odo_e, &log_buffer.map.odometry_pos.e)
+LOG_ADD(LOG_FLOAT, m_odo_n, &log_buffer.map.odometry_pos.n)
+LOG_ADD(LOG_UINT8, i_ss_idx, &log_buffer.ins_correction.snapshot_index)
+LOG_ADD(LOG_FLOAT, i_from_e, &log_buffer.ins_correction.from.e)
+LOG_ADD(LOG_FLOAT, i_from_n, &log_buffer.ins_correction.from.n)
+LOG_ADD(LOG_FLOAT, i_from_psi, &log_buffer.ins_correction.psi_from)
+LOG_ADD(LOG_FLOAT, i_to_e, &log_buffer.ins_correction.to.e)
+LOG_ADD(LOG_FLOAT, i_to_n, &log_buffer.ins_correction.to.n)
+LOG_ADD(LOG_FLOAT, i_to_psi, &log_buffer.ins_correction.psi_to)
+LOG_GROUP_STOP(vh)
+
+
 void visualhoming_set_goal(float n, float e) {
   static float last_n, last_e;
   if (n != last_n || e != last_e) {
@@ -678,4 +726,3 @@ void appMain() {
     vTaskDelayUntil(&xLastWakeTime, xPeriod);
   }
 }
-

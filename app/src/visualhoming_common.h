@@ -11,6 +11,10 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
+struct pos2f_t {
+  float n;
+  float e;
+};
 
 struct pos3f_t {
   float n;
