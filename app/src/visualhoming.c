@@ -208,29 +208,13 @@ static void armedLand(const float absoluteHeight_m, const float duration_s) {
 
 static void control_periodic(void) {
   if (control.low_level) {
-    float x = logGetFloat(varid.pos_x);
-    float y = logGetFloat(varid.pos_y);
-    float z = logGetFloat(varid.pos_z);
-    float vx = control.setpoint.x - x;
-    float vy = control.setpoint.y - y;
-    float vz = control.setpoint.z - z;
-    vx *= params.conf.p_gain;
-    vy *= params.conf.p_gain;
-    vz *= params.conf.p_gain;
-    float vnorm = sqrtf(vx * vx + vy * vy + vz * vz);
-    float scale = vnorm < params.conf.vref ? 1.0f : params.conf.vref / vnorm;
-    vx *= scale;
-    vy *= scale;
-    vz *= scale;
-
     static setpoint_t setpoint;  // Initialized 0
-    setpoint.mode.x = modeVelocity;
-    setpoint.mode.y = modeVelocity;
-    setpoint.mode.z = modeVelocity;
-    setpoint.velocity.x = vx;
-    setpoint.velocity.y = vy;
-    setpoint.velocity.z = vz;
-    setpoint.velocity_body = false;
+    setpoint.mode.x = modeAbs;
+    setpoint.mode.y = modeAbs;
+    setpoint.mode.z = modeAbs;
+    setpoint.position.x = control.setpoint.x;
+    setpoint.position.y = control.setpoint.y;
+    setpoint.position.z = control.setpoint.z;
     commanderSetSetpoint(&setpoint, COMMANDER_PRIORITY_EXTRX);
   }
 }
