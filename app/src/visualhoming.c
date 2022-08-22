@@ -117,6 +117,7 @@ static struct params_t {
   struct {
     uint8_t force_yaw;
     uint8_t force_pos;
+    uint8_t dry_run;
   } debug;
 } params;
 
@@ -141,6 +142,7 @@ PARAM_ADD(PARAM_FLOAT, conf_yaw_rad_sd, &params.conf.yaw_rad_sd)
 PARAM_ADD(PARAM_FLOAT, conf_pos_m_sd, &params.conf.pos_m_sd)
 PARAM_ADD(PARAM_UINT8, db_yaw, &params.debug.force_yaw)
 PARAM_ADD(PARAM_UINT8, db_pos, &params.debug.force_pos)
+PARAM_ADD(PARAM_UINT8, db_dryrun, &params.debug.dry_run)
 PARAM_GROUP_STOP(vh)
 
 
@@ -150,19 +152,45 @@ static struct state_t state;  // Shared state buffer, to avoid repeated fetches.
 ///////////////////////////////////////////////////////////
 
 
-void visualhoming_set_goal(float n, float e) {
-  static float last_n, last_e;
+static void armedGoTo(const float x, const float y, const float z, const float yaw, const float duration_s, const bool relative) {
   if (params.sw.enable) {
-    if (n != last_n || e != last_e) {
-      last_n = n;
-      last_e = e;
-      float dist = 0;
-      float time = dist / params.conf.vref;
-      if (time < 1.0f) time = 1.0;
-      crtpCommanderHighLevelGoTo(n, -e, params.conf.z, 0.0, time, false);
-    }
+    crtpCommanderHighLevelGoTo(x, y, z, yaw, duration_s, relative);
   } else {
     crtpCommanderHighLevelDisable();
+  }
+}
+
+static void armedTakeoff(const float absoluteHeight_m, const float duration_s) {
+  if (params.sw.enable) {
+    crtpCommanderHighLevelTakeoff(absoluteHeight_m, duration_s);
+  } else {
+    crtpCommanderHighLevelDisable();
+  }
+}
+
+static void armedLand(const float absoluteHeight_m, const float duration_s) {
+  if (!params.debug.dry_run) {  // Not ideal
+    crtpCommanderHighLevelLand(absoluteHeight_m, duration_s);
+  } else {
+    crtpCommanderHighLevelDisable();
+  }
+}
+
+
+///////////////////////////////////////////////////////////
+
+
+void visualhoming_set_goal(float n, float e) {
+  static float last_n, last_e;
+  if (n != last_n || e != last_e) {
+    last_n = n;
+    last_e = e;
+    float dn = n - state.pos.n;
+    float de = e - state.pos.e;
+    float dist = sqrtf(dn* dn + de * de);
+    float time = dist / params.conf.vref;
+    if (time < 0.1f) time = 0.1;
+    armedGoTo(n, -e, params.conf.z, 0.0, time, false);
   }
 }
 
@@ -326,6 +354,122 @@ static void experiment_single_snapshot_periodic(void) {
   }
 }
 
+static void experiment_odometry_periodic(void) {
+  switch (experiment_state.block) {
+    case 0:  // Go to homing position
+      visualhoming_set_goal(0, 0);
+      if (dist2_to(0, 0) > 0.30f * 0.30f) break;
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 1:  // Start recording
+      params.btn.record_odometry = 1;
+      next_block();
+      break;
+    case 2:  // Wait for recording to start
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 3:  // Go to position 1
+      visualhoming_set_goal(0, -2);
+      if (dist2_to(0, -2) > 0.30f * 0.30f) break;
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 4:  // Go to position 2
+      visualhoming_set_goal(2, -2);
+      if (dist2_to(2, -2) > 0.30f * 0.30f) break;
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 5:  // Go to position 3
+      visualhoming_set_goal(2, 2);
+      if (dist2_to(2, 2) > 0.30f * 0.30f) break;
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 6:  // Go to position 4
+      visualhoming_set_goal(0, 2);
+      if (dist2_to(0, 2) > 0.30f * 0.30f) break;
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 7:  // Homing
+      params.btn.follow = 1;
+      next_block();
+      break;
+    case 8:  // Wait for arrival
+      if (dist2_to(0, 0) > 0.30f * 0.30f) break;
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 9:  // Reset
+      params.btn.record_clear = 1;
+      experiment_state.block = 0;
+      break;
+    default:
+      break;
+  }
+}
+
+static void experiment_both_sequence_periodic(void) {
+  switch (experiment_state.block) {
+    case 0:  // Go to homing position
+      visualhoming_set_goal(0, 0);
+      if (dist2_to(0, 0) > 0.30f * 0.30f) break;
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 1:  // Start recording
+      params.btn.record_both_sequence = 1;
+      next_block();
+      break;
+    case 2:  // Wait for recording to start
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 3:  // Go to position 1
+      visualhoming_set_goal(0, -2);
+      if (dist2_to(0, -2) > 0.30f * 0.30f) break;
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 4:  // Go to position 2
+      visualhoming_set_goal(2, -2);
+      if (dist2_to(2, -2) > 0.30f * 0.30f) break;
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 5:  // Go to position 3
+      visualhoming_set_goal(2, 2);
+      if (dist2_to(2, 2) > 0.30f * 0.30f) break;
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 6:  // Go to position 4
+      visualhoming_set_goal(0, 2);
+      if (dist2_to(0, 2) > 0.30f * 0.30f) break;
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 7:  // Homing
+      params.btn.follow = 1;
+      next_block();
+      break;
+    case 8:  // Wait for arrival
+      if (dist2_to(0, 0) > 0.30f * 0.30f) break;
+      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+      if (usecTimestamp() > experiment_state.timer) next_block();
+      break;
+    case 9:  // Reset
+      params.btn.record_clear = 1;
+      experiment_state.block = 0;
+      break;
+    default:
+      break;
+  }
+}
+
 
 typedef void (*experiment_fn)(void);
 
@@ -333,6 +477,8 @@ experiment_fn experiment_periodic_fn[] = {
     experiment_idle_periodic,
     experiment_fake_homing_periodic,
     experiment_single_snapshot_periodic,
+    experiment_odometry_periodic,
+    experiment_both_sequence_periodic,
 };
 static const int NUM_EXPERIMENTS = sizeof(experiment_periodic_fn) / sizeof(experiment_periodic_fn[0]);
 
@@ -398,7 +544,7 @@ static bool is_safe(void) {
 
   bool safe = true;
   safe &= !params.sw.kill;
-  safe &= params.sw.enable;
+  safe &= params.sw.enable || (params.debug.dry_run && !params.sw.enable);
   safe &= dist2_home < dist2_thres;
   safe &= state.pos.u < params.conf.max_z;
   return safe;
@@ -450,13 +596,13 @@ static void app_periodic(void) {
       params.sw.experiment = 0;
       paramSetInt(varid.kalman_reset, 1);
       vTaskDelay(M2T(1000));
-      crtpCommanderHighLevelTakeoff(params.conf.z, 1.0);
+      armedTakeoff(params.conf.z, 1.0);
       vTaskDelay(M2T(1000));
       in_flight = true;
     }
   } else { // in_flight
     if (!is_safe()) {
-      crtpCommanderHighLevelLand(0.0, 1.0);
+      armedLand(0.0, 1.0);
       vTaskDelay(M2T(1500));
       crtpCommanderHighLevelStop();
       params.sw.enable = 0;
