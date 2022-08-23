@@ -232,6 +232,7 @@ static struct {
     struct pos2f_t pos;
     uint8_t experiment;
     uint8_t point;
+    uint8_t block;
   } point;
 } log_buffer;
 
@@ -261,6 +262,7 @@ LOG_ADD(LOG_FLOAT, p_e, &log_buffer.point.pos.e)
 LOG_ADD(LOG_FLOAT, p_n, &log_buffer.point.pos.n)
 LOG_ADD(LOG_UINT8, p_exp, &log_buffer.point.experiment)
 LOG_ADD(LOG_UINT8, p_pt, &log_buffer.point.point)
+LOG_ADD(LOG_UINT8, p_block, &log_buffer.point.block)
 LOG_GROUP_STOP(vh)
 
 
@@ -643,6 +645,7 @@ static void experiment_periodic(void) {
       experiment_state.experiment = params.sw.experiment;
     }
     experiment_periodic_fn[params.sw.experiment]();
+    log_buffer.point.block = experiment_state.block;
   }
 }
 
