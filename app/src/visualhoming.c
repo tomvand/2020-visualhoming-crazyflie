@@ -101,6 +101,7 @@ static struct params_t {
   } sw;
   struct {
     // Bool buttons
+    uint8_t idle;
     uint8_t record_clear;
     uint8_t record_snapshot_single;
     uint8_t record_snapshot_sequence;
@@ -135,6 +136,7 @@ PARAM_ADD(PARAM_FLOAT, S_max_dist, &params.conf.max_dist_from_home)
 PARAM_ADD(PARAM_FLOAT, S_max_alt, &params.conf.max_z)
 PARAM_ADD(PARAM_UINT8, sw_experiment, &params.sw.experiment)
 PARAM_ADD(PARAM_UINT8, btn_clear, &params.btn.record_clear)
+PARAM_ADD(PARAM_UINT8, btn_idle, &params.btn.idle)
 PARAM_ADD(PARAM_UINT8, btn_ss_single, &params.btn.record_snapshot_single)
 PARAM_ADD(PARAM_UINT8, btn_ss_seq, &params.btn.record_snapshot_sequence)
 PARAM_ADD(PARAM_UINT8, btn_odo, &params.btn.record_odometry)
@@ -460,8 +462,9 @@ static void experiment_single_snapshot_periodic(void) {
     case 5:  // Homing (wait)
       WAIT(10.0)
       log_point(start_pos, 2);
-      next_block();
+      params.btn.idle = 1;
       start_pos++;
+      next_block();
       experiment_state.block = 3;
       break;
     default:
@@ -709,7 +712,9 @@ static bool is_safe(void) {
 
 static void handle_buttons(enum camera_state_t *cam_state) {
   // Handle camera state buttons
-  if (params.btn.record_clear) {
+  if (params.btn.idle) {
+    *cam_state = STATE_IDLE;
+  } else if (params.btn.record_clear) {
     *cam_state = RECORD_CLEAR;
   } else if (params.btn.record_snapshot_single) {
     *cam_state = RECORD_SNAPSHOT;
