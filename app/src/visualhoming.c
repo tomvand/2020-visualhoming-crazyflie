@@ -442,6 +442,7 @@ static void experiment_single_snapshot_periodic(void) {
       break;
     case 1:  // Take snapshot (start)
       params.btn.record_snapshot_single = 1;
+      log_point(0, 1);
       next_block();
       break;
     case 2:  // Take snapshot (wait)
@@ -452,7 +453,7 @@ static void experiment_single_snapshot_periodic(void) {
       start_n = (start_pos % 5) - 2;
       start_e = (start_pos / 5) - 2;
       MOVE_TO_AND_WAIT(start_n, start_e, 0.30, 1.0);
-      log_point(start_pos, 1);
+      log_point(start_pos + 1, 1);
       next_block();
       break;
     case 4:  // Homing (start)
@@ -461,7 +462,7 @@ static void experiment_single_snapshot_periodic(void) {
       break;
     case 5:  // Homing (wait)
       WAIT(10.0)
-      log_point(start_pos, 2);
+      log_point(start_pos + 1, 2);
       params.btn.idle = 1;
       start_pos++;
       next_block();
