@@ -41,6 +41,8 @@
 #include "commander.h"
 #include "estimator.h"
 #include "usec_time.h"
+#include "crtp.h"
+#include "pm.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -707,6 +709,8 @@ static bool is_safe(void) {
   safe &= params.sw.enable || (params.debug.dry_run && !params.sw.enable);
   safe &= dist2_home < dist2_thres;
   safe &= state.pos.u < params.conf.max_z;
+  safe &= crtpIsConnected();
+  safe &= !pmIsBatteryLow();
   return safe;
 }
 
