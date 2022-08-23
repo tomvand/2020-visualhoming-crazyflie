@@ -101,6 +101,7 @@ static struct params_t {
   } sw;
   struct {
     // Bool buttons
+    uint8_t idle;
     uint8_t record_clear;
     uint8_t record_snapshot_single;
     uint8_t record_snapshot_sequence;
@@ -135,6 +136,7 @@ PARAM_ADD(PARAM_FLOAT, S_max_dist, &params.conf.max_dist_from_home)
 PARAM_ADD(PARAM_FLOAT, S_max_alt, &params.conf.max_z)
 PARAM_ADD(PARAM_UINT8, sw_experiment, &params.sw.experiment)
 PARAM_ADD(PARAM_UINT8, btn_clear, &params.btn.record_clear)
+PARAM_ADD(PARAM_UINT8, btn_idle, &params.btn.idle)
 PARAM_ADD(PARAM_UINT8, btn_ss_single, &params.btn.record_snapshot_single)
 PARAM_ADD(PARAM_UINT8, btn_ss_seq, &params.btn.record_snapshot_sequence)
 PARAM_ADD(PARAM_UINT8, btn_odo, &params.btn.record_odometry)
@@ -228,6 +230,12 @@ static struct {
   struct msg_ins_correction_t ins_correction;
   struct msg_map_t map;
   struct pos2f_t pos;
+  struct {
+    struct pos2f_t pos;
+    uint8_t experiment;
+    uint8_t point;
+    uint8_t block;
+  } point;
 } log_buffer;
 
 LOG_GROUP_START(vh)
@@ -252,6 +260,11 @@ LOG_ADD(LOG_FLOAT, i_from_psi, &log_buffer.ins_correction.psi_from)
 LOG_ADD(LOG_FLOAT, i_to_e, &log_buffer.ins_correction.to.e)
 LOG_ADD(LOG_FLOAT, i_to_n, &log_buffer.ins_correction.to.n)
 LOG_ADD(LOG_FLOAT, i_to_psi, &log_buffer.ins_correction.psi_to)
+LOG_ADD(LOG_FLOAT, p_e, &log_buffer.point.pos.e)
+LOG_ADD(LOG_FLOAT, p_n, &log_buffer.point.pos.n)
+LOG_ADD(LOG_UINT8, p_exp, &log_buffer.point.experiment)
+LOG_ADD(LOG_UINT8, p_pt, &log_buffer.point.point)
+LOG_ADD(LOG_UINT8, p_block, &log_buffer.point.block)
 LOG_GROUP_STOP(vh)
 
 
@@ -320,6 +333,14 @@ struct state_t visualhoming_get_state(void) {
 
 
 ///////////////////////////////////////////////////////////
+
+
+static void log_point(uint8_t experiment, uint8_t point) {
+  log_buffer.point.experiment = experiment;
+  log_buffer.point.point = point;
+  log_buffer.point.pos.e = state.pos.e;
+  log_buffer.point.pos.n = state.pos.n;
+}
 
 
 static float dist2_to(float n, float e) {
@@ -398,44 +419,98 @@ static void experiment_fake_homing_periodic(void) {
   }
 }
 
+
+#define MOVE_TO_AND_WAIT(_n, _e, _radius, _time) \
+  visualhoming_set_goal((_n), (_e)); \
+  if (dist2_to((_n), (_e)) > (float)(_radius) * (float)(_radius)) break; \
+  if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + (float)(_time) * (float)1.0e6; \
+  if (usecTimestamp() < experiment_state.timer) break;
+
+#define WAIT(_time) \
+    if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + (float)(_time) * (float)1.0e6; \
+    if (usecTimestamp() < experiment_state.timer) break;
+
 static void experiment_single_snapshot_periodic(void) {
+  static int8_t start_pos;
+  float start_n, start_e;
+
   switch (experiment_state.block) {
     case 0:  // Go to homing position
-      visualhoming_set_goal(0, 0);
-      if (dist2_to(0, 0) > 0.30f * 0.30f) break;
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
+      start_pos = 0;
+      MOVE_TO_AND_WAIT(0, 0, 0.30, 1.0);
+      next_block();
       break;
-    case 1:  // Take snapshot
+    case 1:  // Take snapshot (start)
       params.btn.record_snapshot_single = 1;
       next_block();
       break;
     case 2:  // Take snapshot (wait)
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
+      WAIT(1.0);
+      next_block();
       break;
     case 3:  // Go to start position
-      visualhoming_set_goal(0, -2);
-      if (dist2_to(0, -2) > 0.30f * 0.30f) break;
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
+      start_n = (start_pos % 5) - 2;
+      start_e = (start_pos / 5) - 2;
+      MOVE_TO_AND_WAIT(start_n, start_e, 0.30, 1.0);
+      log_point(start_pos, 1);
+      next_block();
       break;
-    case 4:  // Homing
+    case 4:  // Homing (start)
       params.btn.follow = 1;
       next_block();
       break;
     case 5:  // Homing (wait)
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 10.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 6:  // Reset
-      params.btn.record_clear = 1;
-      experiment_state.block = 0;
+      WAIT(10.0)
+      log_point(start_pos, 2);
+      params.btn.idle = 1;
+      start_pos++;
+      next_block();
+      experiment_state.block = 3;
       break;
     default:
       break;
   }
 }
+
+
+//static void experiment_single_snapshot_periodic(void) {
+//  switch (experiment_state.block) {
+//    case 0:  // Go to homing position
+//      visualhoming_set_goal(0, 0);
+//      if (dist2_to(0, 0) > 0.30f * 0.30f) break;
+//      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+//      if (usecTimestamp() > experiment_state.timer) next_block();
+//      break;
+//    case 1:  // Take snapshot
+//      params.btn.record_snapshot_single = 1;
+//      next_block();
+//      break;
+//    case 2:  // Take snapshot (wait)
+//      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+//      if (usecTimestamp() > experiment_state.timer) next_block();
+//      break;
+//    case 3:  // Go to start position
+//      visualhoming_set_goal(0, -2);
+//      if (dist2_to(0, -2) > 0.30f * 0.30f) break;
+//      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
+//      if (usecTimestamp() > experiment_state.timer) next_block();
+//      break;
+//    case 4:  // Homing
+//      params.btn.follow = 1;
+//      next_block();
+//      break;
+//    case 5:  // Homing (wait)
+//      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 10.0e6;
+//      if (usecTimestamp() > experiment_state.timer) next_block();
+//      break;
+//    case 6:  // Reset
+//      params.btn.record_clear = 1;
+//      experiment_state.block = 0;
+//      break;
+//    default:
+//      break;
+//  }
+//}
 
 static void experiment_odometry_periodic(void) {
   switch (experiment_state.block) {
@@ -573,6 +648,7 @@ static void experiment_periodic(void) {
       experiment_state.experiment = params.sw.experiment;
     }
     experiment_periodic_fn[params.sw.experiment]();
+    log_buffer.point.block = experiment_state.block;
   }
 }
 
@@ -636,7 +712,9 @@ static bool is_safe(void) {
 
 static void handle_buttons(enum camera_state_t *cam_state) {
   // Handle camera state buttons
-  if (params.btn.record_clear) {
+  if (params.btn.idle) {
+    *cam_state = STATE_IDLE;
+  } else if (params.btn.record_clear) {
     *cam_state = RECORD_CLEAR;
   } else if (params.btn.record_snapshot_single) {
     *cam_state = RECORD_SNAPSHOT;
