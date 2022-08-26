@@ -75,11 +75,11 @@
 
 
 #ifndef VISUALHOMING_YAW_RAD_SD
-#define VISUALHOMING_YAW_RAD_SD 0.17 // approx 10deg
+#define VISUALHOMING_YAW_RAD_SD 0.001
 #endif
 
 #ifndef VISUALHOMING_POS_M_SD
-#define VISUALHOMING_POS_M_SD 0.50
+#define VISUALHOMING_POS_M_SD 0.001
 #endif
 
 
