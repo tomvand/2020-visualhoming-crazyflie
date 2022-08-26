@@ -297,7 +297,7 @@ void visualhoming_position_update(float dn, float de) {
 
 void visualhoming_heading_update(float dpsi) {
   yawErrorMeasurement_t ye = {
-      .yawError = dpsi / 2,
+      .yawError = dpsi,
       .stdDev = params.conf.yaw_rad_sd,
   };
   estimatorEnqueueYawError(&ye);
