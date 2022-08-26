@@ -642,6 +642,44 @@ static void experiment_snapshot_distance_periodic(void) {
   }
 }
 
+void experiment_ins_correction_yaw(void) {
+  switch (experiment_state.block) {
+    case 0:  // Take snapshot (btn)
+      MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+      params.btn.record_snapshot_single = 1;
+      next_block();
+      break;
+    case 1:  // Take snapshot (wait), follow (btn)
+      WAIT(2.0);
+      params.btn.follow = 1;
+      next_block();
+      break;
+    case 2:  // Follow (wait)
+      WAIT(2.0);
+      next_block();
+      break;
+    case 3:  // Incorrectly update heading
+      visualhoming_heading_update(-0.80);  // DRONE SHOULD YAW RIGHT!
+      next_block();
+      break;
+    case 4:  // Wait
+      WAIT(5.0);
+      next_block();
+      break;
+    case 5:  // Re-align INS
+      visualhoming_heading_update(log_buffer.vector.delta_psi);  // DRONE SHOULD RESTORE HEADING!
+      next_block();
+      break;
+    case 6:  // Wait
+      WAIT(5.0);
+      next_block();
+      experiment_state.block = 3;
+      break;
+    default:
+      break;
+  }
+}
+
 
 typedef void (*experiment_fn)(void);
 
@@ -652,6 +690,7 @@ experiment_fn experiment_periodic_fn[] = {
     experiment_odometry_periodic,
     experiment_both_sequence_periodic,
     experiment_snapshot_distance_periodic,
+    experiment_ins_correction_yaw,
 };
 static const int NUM_EXPERIMENTS = sizeof(experiment_periodic_fn) / sizeof(experiment_periodic_fn[0]);
 
