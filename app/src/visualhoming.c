@@ -475,46 +475,6 @@ static void experiment_single_snapshot_periodic(void) {
   }
 }
 
-
-//static void experiment_single_snapshot_periodic(void) {
-//  switch (experiment_state.block) {
-//    case 0:  // Go to homing position
-//      visualhoming_set_goal(0, 0);
-//      if (dist2_to(0, 0) > 0.30f * 0.30f) break;
-//      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-//      if (usecTimestamp() > experiment_state.timer) next_block();
-//      break;
-//    case 1:  // Take snapshot
-//      params.btn.record_snapshot_single = 1;
-//      next_block();
-//      break;
-//    case 2:  // Take snapshot (wait)
-//      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-//      if (usecTimestamp() > experiment_state.timer) next_block();
-//      break;
-//    case 3:  // Go to start position
-//      visualhoming_set_goal(0, -2);
-//      if (dist2_to(0, -2) > 0.30f * 0.30f) break;
-//      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-//      if (usecTimestamp() > experiment_state.timer) next_block();
-//      break;
-//    case 4:  // Homing
-//      params.btn.follow = 1;
-//      next_block();
-//      break;
-//    case 5:  // Homing (wait)
-//      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 10.0e6;
-//      if (usecTimestamp() > experiment_state.timer) next_block();
-//      break;
-//    case 6:  // Reset
-//      params.btn.record_clear = 1;
-//      experiment_state.block = 0;
-//      break;
-//    default:
-//      break;
-//  }
-//}
-
 static void experiment_odometry_periodic(void) {
   switch (experiment_state.block) {
     case 0:  // Go to homing position
@@ -631,6 +591,57 @@ static void experiment_both_sequence_periodic(void) {
   }
 }
 
+static void experiment_snapshot_distance_periodic(void) {
+  static struct pos2f_t ss_pos;
+  static float ss_psi;
+  static uint8_t run_idx;
+  switch (experiment_state.block) {
+    case 0:  // Take snapshot at start (move, btn)
+      run_idx = 0;
+      MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0)
+      params.btn.record_snapshot_single = 1;
+      // log snapshot pose for manual realignment
+      ss_pos.n = state.pos.n;
+      ss_pos.e = state.pos.e;
+      ss_psi = state.att.psi;
+      log_point(0, 1);
+      next_block();
+      break;
+    case 1:  // Take snapshot at start (wait)
+      WAIT(1.0)
+      next_block();
+      break;
+    case 2:  // Move forward for heading alginment
+      MOVE_TO_AND_WAIT(2, 0, 0.3, 1.0)
+      log_point(0, 2);
+      next_block();
+      break;
+    case 3:  // Home to start position (move, btn)
+      MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0)
+      params.btn.follow = 1;
+      next_block();
+      break;
+    case 4:  // Home to start position (wait)
+      WAIT(2.0)
+      run_idx++;
+      log_point(run_idx, 1);  // Homing accuracy
+      params.btn.idle = 1;
+      /* XXX Manually re-align INS */
+      visualhoming_position_update(ss_pos.n - state.pos.n, ss_pos.e - state.pos.e);
+      visualhoming_heading_update(log_buffer.vector.delta_psi);
+      next_block();
+      break;
+    case 5:  // Move forwards
+      MOVE_TO_AND_WAIT((run_idx - 1) % 5 + 1, 0, 0.3, 0.5);
+      log_point(run_idx, 2);  // Homing + odo accuracy
+      next_block();
+      experiment_state.block = 3;  // Loop
+      break;
+    default:
+      break;
+  }
+}
+
 
 typedef void (*experiment_fn)(void);
 
@@ -640,6 +651,7 @@ experiment_fn experiment_periodic_fn[] = {
     experiment_single_snapshot_periodic,
     experiment_odometry_periodic,
     experiment_both_sequence_periodic,
+    experiment_snapshot_distance_periodic,
 };
 static const int NUM_EXPERIMENTS = sizeof(experiment_periodic_fn) / sizeof(experiment_periodic_fn[0]);
 
