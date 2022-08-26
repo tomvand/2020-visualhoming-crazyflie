@@ -86,6 +86,8 @@ class Client(tk.Tk):
                 label = 'Odo'
             elif i == 4:
                 label = 'Both\nseq'
+            elif i == 5:
+                label = 'RMSE\nexp'
             self.experiment_button = tk.Button(self, text=label)
             self.experiment_button['command'] = lambda x=i: self.experiment_btn_clicked(x)
             self.experiment_button.grid(row=i // experiment_cols, column=3 + (i % experiment_cols), sticky=tk.NSEW)
