@@ -659,7 +659,7 @@ void experiment_ins_correction_yaw(void) {
       next_block();
       break;
     case 3:  // Incorrectly update heading
-      visualhoming_heading_update(-0.80f + state.att.psi);  // DRONE SHOULD YAW RIGHT!
+      visualhoming_heading_update(-0.80f);  // DRONE SHOULD YAW RIGHT!
       next_block();
       break;
     case 4:  // Wait
