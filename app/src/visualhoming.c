@@ -667,7 +667,8 @@ void experiment_ins_correction_yaw(void) {
       next_block();
       break;
     case 5:  // Re-align INS
-      visualhoming_heading_update(log_buffer.vector.delta_psi);  // DRONE SHOULD RESTORE HEADING!
+      // Note: a vector to turn right means the true yaw is more to the left, hence the '-' sign.
+      visualhoming_heading_update(-log_buffer.vector.delta_psi);  // DRONE SHOULD RESTORE HEADING!
       next_block();
       break;
     case 6:  // Wait
