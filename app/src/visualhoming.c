@@ -628,7 +628,7 @@ static void experiment_snapshot_distance_periodic(void) {
       params.btn.idle = 1;
       /* XXX Manually re-align INS */
       visualhoming_position_update(ss_pos.n - state.pos.n, ss_pos.e - state.pos.e);
-      visualhoming_heading_update(log_buffer.vector.delta_psi);
+      visualhoming_heading_update(-log_buffer.vector.delta_psi);
       next_block();
       break;
     case 5:  // Move forwards
