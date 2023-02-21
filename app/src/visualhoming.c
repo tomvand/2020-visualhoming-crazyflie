@@ -75,11 +75,11 @@
 
 
 #ifndef VISUALHOMING_YAW_RAD_SD
-#define VISUALHOMING_YAW_RAD_SD 0.17 // approx 10deg
+#define VISUALHOMING_YAW_RAD_SD 0.001
 #endif
 
 #ifndef VISUALHOMING_POS_M_SD
-#define VISUALHOMING_POS_M_SD 0.50
+#define VISUALHOMING_POS_M_SD 0.001
 #endif
 
 
@@ -297,7 +297,7 @@ void visualhoming_position_update(float dn, float de) {
 
 void visualhoming_heading_update(float dpsi) {
   yawErrorMeasurement_t ye = {
-      .yawError = dpsi / 2,
+      .yawError = dpsi,
       .stdDev = params.conf.yaw_rad_sd,
   };
   estimatorEnqueueYawError(&ye);
@@ -628,7 +628,7 @@ static void experiment_snapshot_distance_periodic(void) {
       params.btn.idle = 1;
       /* XXX Manually re-align INS */
       visualhoming_position_update(ss_pos.n - state.pos.n, ss_pos.e - state.pos.e);
-      visualhoming_heading_update(log_buffer.vector.delta_psi);
+      visualhoming_heading_update(-log_buffer.vector.delta_psi);
       next_block();
       break;
     case 5:  // Move forwards
@@ -636,6 +636,45 @@ static void experiment_snapshot_distance_periodic(void) {
       log_point(run_idx, 2);  // Homing + odo accuracy
       next_block();
       experiment_state.block = 3;  // Loop
+      break;
+    default:
+      break;
+  }
+}
+
+void experiment_ins_correction_yaw(void) {
+  switch (experiment_state.block) {
+    case 0:  // Take snapshot (btn)
+      MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+      params.btn.record_snapshot_single = 1;
+      next_block();
+      break;
+    case 1:  // Take snapshot (wait), follow (btn)
+      WAIT(2.0);
+      params.btn.follow = 1;
+      next_block();
+      break;
+    case 2:  // Follow (wait)
+      WAIT(2.0);
+      next_block();
+      break;
+    case 3:  // Incorrectly update heading
+      visualhoming_heading_update(-0.80f);  // DRONE SHOULD YAW RIGHT!
+      next_block();
+      break;
+    case 4:  // Wait
+      WAIT(5.0);
+      next_block();
+      break;
+    case 5:  // Re-align INS
+      // Note: a vector to turn right means the true yaw is more to the left, hence the '-' sign.
+      visualhoming_heading_update(-log_buffer.vector.delta_psi);  // DRONE SHOULD RESTORE HEADING!
+      next_block();
+      break;
+    case 6:  // Wait
+      WAIT(5.0);
+      next_block();
+      experiment_state.block = 3;
       break;
     default:
       break;
@@ -652,6 +691,7 @@ experiment_fn experiment_periodic_fn[] = {
     experiment_odometry_periodic,
     experiment_both_sequence_periodic,
     experiment_snapshot_distance_periodic,
+    experiment_ins_correction_yaw,
 };
 static const int NUM_EXPERIMENTS = sizeof(experiment_periodic_fn) / sizeof(experiment_periodic_fn[0]);
 
