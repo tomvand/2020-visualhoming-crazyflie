@@ -70,7 +70,7 @@
 #endif
 
 #ifndef VISUALHOMING_MAX_DIST_FROM_HOME
-#define VISUALHOMING_MAX_DIST_FROM_HOME 4.0
+#define VISUALHOMING_MAX_DIST_FROM_HOME 8.0
 #endif
 
 
@@ -922,6 +922,13 @@ static void app_periodic(void) {
 
   // Flight control
   if (!in_flight) {
+    // HACK reset kalman filter on ground
+    static uint8_t i = 0;
+    i++;
+    if ((i % 16) == 0) {
+      paramSetInt(varid.kalman_reset, 1);
+    }
+    // Take-off check
     if (is_safe()) { // includes 'enable' switch
       params.sw.experiment = 0;
       paramSetInt(varid.kalman_reset, 1);
