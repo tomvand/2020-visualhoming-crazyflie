@@ -681,6 +681,115 @@ void experiment_ins_correction_yaw(void) {
   }
 }
 
+void experiment_u_both(void) {
+  switch (experiment_state.block) {
+      case 0:  // Take snapshot (btn)
+        MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+        params.btn.record_both_sequence = 1;
+        next_block();
+        break;
+      case 1:  // Take snapshot (wait)
+        WAIT(2.0);
+        next_block();
+        break;
+      case 2:  // Go to bottom left
+        MOVE_TO_AND_WAIT(-5, 0, 0.3, 1.0);
+        next_block();
+        break;
+      case 3:  // Go to bottom right
+        MOVE_TO_AND_WAIT(-5, 4, 0.3, 1.0);
+        next_block();
+        break;
+      case 4:  // Go to top right
+        MOVE_TO_AND_WAIT(-5, 4, 0.3, 1.0);
+        next_block();
+        break;
+      case 5:  // Homing
+        params.btn.follow = 1;
+        next_block();
+        break;
+      case 6:  // Wait for arrival
+        if (dist2_to(0, 0) > 0.30f * 0.30f) break;
+        WAIT(5.0);
+        next_block();
+        break;
+      case 7:  // Reset
+        params.btn.record_clear = 1;
+        experiment_state.block = 0;
+        break;
+    }
+}
+
+void experiment_u_odo(void) {
+  switch (experiment_state.block) {
+      case 0:  // Take snapshot (btn)
+        MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+        params.btn.record_odometry = 1;
+        next_block();
+        break;
+      case 1:  // Take snapshot (wait)
+        WAIT(2.0);
+        next_block();
+        break;
+      case 2:  // Go to bottom left
+        MOVE_TO_AND_WAIT(-5, 0, 0.3, 1.0);
+        next_block();
+        break;
+      case 3:  // Go to bottom right
+        MOVE_TO_AND_WAIT(-5, 4, 0.3, 1.0);
+        next_block();
+        break;
+      case 4:  // Go to top right
+        MOVE_TO_AND_WAIT(-5, 4, 0.3, 1.0);
+        next_block();
+        break;
+      case 5:  // Homing
+        params.btn.follow = 1;
+        next_block();
+        break;
+      case 6:  // Wait for arrival
+        if (dist2_to(0, 0) > 0.30f * 0.30f) break;
+        WAIT(5.0);
+        next_block();
+        break;
+      case 7:  // Reset
+        params.btn.record_clear = 1;
+        experiment_state.block = 0;
+        break;
+    }
+}
+
+void experiment_corridor_both(void) {
+  switch (experiment_state.block) {
+      case 0:  // Take snapshot (btn)
+        MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+        params.btn.record_both_sequence = 1;
+        next_block();
+        break;
+      case 1:  // Take snapshot (wait)
+        WAIT(2.0);
+        next_block();
+        break;
+      case 2:  // Go to top
+        MOVE_TO_AND_WAIT(6, 0, 0.3, 1.0);
+        next_block();
+        break;
+      case 3:  // Homing
+        params.btn.follow = 1;
+        next_block();
+        break;
+      case 4:  // Wait for arrival
+        if (dist2_to(0, 0) > 0.30f * 0.30f) break;
+        WAIT(5.0);
+        next_block();
+        break;
+      case 5:  // Reset
+        params.btn.record_clear = 1;
+        experiment_state.block = 0;
+        break;
+    }
+}
+
 
 typedef void (*experiment_fn)(void);
 
@@ -692,6 +801,9 @@ experiment_fn experiment_periodic_fn[] = {
     experiment_both_sequence_periodic,
     experiment_snapshot_distance_periodic,
     experiment_ins_correction_yaw,
+    experiment_corridor_both,
+    experiment_u_both,
+    experiment_u_odo,
 };
 static const int NUM_EXPERIMENTS = sizeof(experiment_periodic_fn) / sizeof(experiment_periodic_fn[0]);
 
