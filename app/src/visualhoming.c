@@ -701,7 +701,7 @@ void experiment_u_both(void) {
         next_block();
         break;
       case 4:  // Go to top right
-        MOVE_TO_AND_WAIT(-5, 4, 0.3, 1.0);
+        MOVE_TO_AND_WAIT(0, 4, 0.3, 1.0);
         next_block();
         break;
       case 5:  // Homing
@@ -740,7 +740,7 @@ void experiment_u_odo(void) {
         next_block();
         break;
       case 4:  // Go to top right
-        MOVE_TO_AND_WAIT(-5, 4, 0.3, 1.0);
+        MOVE_TO_AND_WAIT(0, 4, 0.3, 1.0);
         next_block();
         break;
       case 5:  // Homing
@@ -790,6 +790,37 @@ void experiment_corridor_both(void) {
     }
 }
 
+void experiment_corridor_odo(void) {
+  switch (experiment_state.block) {
+      case 0:  // Take snapshot (btn)
+        MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+        params.btn.record_odometry = 1;
+        next_block();
+        break;
+      case 1:  // Take snapshot (wait)
+        WAIT(2.0);
+        next_block();
+        break;
+      case 2:  // Go to top
+        MOVE_TO_AND_WAIT(6, 0, 0.3, 1.0);
+        next_block();
+        break;
+      case 3:  // Homing
+        params.btn.follow = 1;
+        next_block();
+        break;
+      case 4:  // Wait for arrival
+        if (dist2_to(0, 0) > 0.30f * 0.30f) break;
+        WAIT(5.0);
+        next_block();
+        break;
+      case 5:  // Reset
+        params.btn.record_clear = 1;
+        experiment_state.block = 0;
+        break;
+    }
+}
+
 
 typedef void (*experiment_fn)(void);
 
@@ -802,6 +833,7 @@ experiment_fn experiment_periodic_fn[] = {
     experiment_snapshot_distance_periodic,
     experiment_ins_correction_yaw,
     experiment_corridor_both,
+    experiment_corridor_odo,
     experiment_u_both,
     experiment_u_odo,
 };
