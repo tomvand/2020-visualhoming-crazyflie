@@ -724,7 +724,6 @@ void experiment_u_odo(void) {
   switch (experiment_state.block) {
       case 0:  // Take snapshot (btn)
         MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
-        params.btn.record_odometry = 1;
         next_block();
         break;
       case 1:  // Take snapshot (wait)
@@ -743,16 +742,19 @@ void experiment_u_odo(void) {
         MOVE_TO_AND_WAIT(0, 4, 0.3, 1.0);
         next_block();
         break;
-      case 5:  // Homing
-        params.btn.follow = 1;
+      case 5:  // Go to bottom right
+        MOVE_TO_AND_WAIT(-5, 4, 0.3, 1.0);
         next_block();
         break;
-      case 6:  // Wait for arrival
-        if (dist2_to(0, 0) > 0.30f * 0.30f) break;
-        WAIT(5.0);
+      case 6:  // Go to bottom left
+        MOVE_TO_AND_WAIT(-5, 0, 0.3, 1.0);
         next_block();
         break;
-      case 7:  // Reset
+      case 7:  // Go to start
+        MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+        next_block();
+        break;
+      case 8:  // Reset
         params.btn.record_clear = 1;
         experiment_state.block = 0;
         break;
