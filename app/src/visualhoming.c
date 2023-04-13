@@ -704,16 +704,32 @@ void experiment_u_both(void) {
         MOVE_TO_AND_WAIT(0, 4, 0.3, 1.0);
         next_block();
         break;
-      case 5:  // Homing
+      case 5:  // Go to bottom right
+        MOVE_TO_AND_WAIT(-5, 4, 0.3, 1.0);
+        next_block();
+        break;
+      case 6:  // Go to bottom left
+        MOVE_TO_AND_WAIT(-5, 0, 0.3, 1.0);
+        next_block();
+        break;
+      case 7:  // Move to top left (start)
+        MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+        next_block();
+        break;
+      case 8:  // Homing
         params.btn.follow = 1;
         next_block();
         break;
-      case 6:  // Wait for arrival
+      case 9:  // Wait for top right arrival
+        if (dist2_to(0, 4) > 0.30f * 0.30f) break;
+        next_block();
+        break;
+      case 10:  // Wait for arrival
         if (dist2_to(0, 0) > 0.30f * 0.30f) break;
         WAIT(5.0);
         next_block();
         break;
-      case 7:  // Reset
+      case 11:  // Reset
         params.btn.record_clear = 1;
         experiment_state.block = 0;
         break;
@@ -723,38 +739,58 @@ void experiment_u_both(void) {
 void experiment_u_odo(void) {
   switch (experiment_state.block) {
       case 0:  // Take snapshot (btn)
-        MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+        MOVE_TO_AND_WAIT(0, 0, 0.3, 3.0);
         next_block();
         break;
-      case 1:  // Take snapshot (wait)
-        WAIT(2.0);
-        next_block();
-        break;
-      case 2:  // Go to bottom left
+      case 1:  // Go to bottom left
         MOVE_TO_AND_WAIT(-5, 0, 0.3, 1.0);
         next_block();
         break;
-      case 3:  // Go to bottom right
+      case 2:  // Go to bottom right
         MOVE_TO_AND_WAIT(-5, 4, 0.3, 1.0);
         next_block();
         break;
-      case 4:  // Go to top right
+      case 3:  // Go to top right
         MOVE_TO_AND_WAIT(0, 4, 0.3, 1.0);
         next_block();
         break;
-      case 5:  // Go to bottom right
+      case 4:  // Go to bottom right
         MOVE_TO_AND_WAIT(-5, 4, 0.3, 1.0);
         next_block();
         break;
-      case 6:  // Go to bottom left
+      case 5:  // Go to bottom left
         MOVE_TO_AND_WAIT(-5, 0, 0.3, 1.0);
         next_block();
         break;
-      case 7:  // Go to start
+      case 6:  // Go to start
         MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
         next_block();
         break;
-      case 8:  // Reset
+      case 7:  // Go to bottom left
+        MOVE_TO_AND_WAIT(-5, 0, 0.3, 1.0);
+        next_block();
+        break;
+      case 8:  // Go to bottom right
+        MOVE_TO_AND_WAIT(-5, 4, 0.3, 1.0);
+        next_block();
+        break;
+      case 9:  // Go to top right
+        MOVE_TO_AND_WAIT(0, 4, 0.3, 1.0);
+        next_block();
+        break;
+      case 10:  // Go to bottom right
+        MOVE_TO_AND_WAIT(-5, 4, 0.3, 1.0);
+        next_block();
+        break;
+      case 11:  // Go to bottom left
+        MOVE_TO_AND_WAIT(-5, 0, 0.3, 1.0);
+        next_block();
+        break;
+      case 12:  // Go to start
+        MOVE_TO_AND_WAIT(0, 0, 0.3, 5.0);
+        next_block();
+        break;
+      case 13:  // Reset
         params.btn.record_clear = 1;
         experiment_state.block = 0;
         break;
