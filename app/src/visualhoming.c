@@ -716,20 +716,36 @@ void experiment_u_both(void) {
         MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
         next_block();
         break;
-      case 8:  // Homing
+      case 8:  // Go to bottom left
+        MOVE_TO_AND_WAIT(-5, 0, 0.3, 1.0);
+        next_block();
+        break;
+      case 9:  // Go to bottom right
+        MOVE_TO_AND_WAIT(-5, 4, 0.3, 1.0);
+        next_block();
+        break;
+      case 10:  // Go to top right
+        MOVE_TO_AND_WAIT(0, 4, 0.3, 1.0);
+        next_block();
+        break;
+      case 11:  // Homing
         params.btn.follow = 1;
         next_block();
         break;
-      case 9:  // Wait for top right arrival
+      case 12:  // Wait for top left arrival
+        if (dist2_to(0, 0) > 0.30f * 0.30f) break;
+        next_block();
+        break;
+      case 13:  // Wait for top right arrival
         if (dist2_to(0, 4) > 0.30f * 0.30f) break;
         next_block();
         break;
-      case 10:  // Wait for arrival
+      case 14:  // Wait for arrival
         if (dist2_to(0, 0) > 0.30f * 0.30f) break;
         WAIT(5.0);
         next_block();
         break;
-      case 11:  // Reset
+      case 15:  // Reset
         params.btn.record_clear = 1;
         experiment_state.block = 0;
         break;
