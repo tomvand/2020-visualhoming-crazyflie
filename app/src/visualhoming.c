@@ -992,12 +992,8 @@ static void app_periodic(void) {
 
   // Flight control
   if (!in_flight) {
-    // HACK reset kalman filter on ground
-    static uint8_t i = 0;
-    i++;
-    if ((i % 16) == 0) {
-      paramSetInt(varid.kalman_reset, 1);
-    }
+    // Measure position zero
+      visualhoming_position_update(-state.pos.n, -state.pos.e);
     // Take-off check
     if (is_safe()) { // includes 'enable' switch
       params.sw.experiment = 0;
