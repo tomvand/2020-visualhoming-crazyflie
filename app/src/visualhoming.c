@@ -728,24 +728,36 @@ void experiment_u_both(void) {
         MOVE_TO_AND_WAIT(0, 4, 0.3, 1.0);
         next_block();
         break;
-      case 11:  // Homing
+      case 11:  // Go to bottom right
+        MOVE_TO_AND_WAIT(-5, 4, 0.3, 1.0);
+        next_block();
+        break;
+      case 12:  // Go to bottom left
+        MOVE_TO_AND_WAIT(-5, 0, 0.3, 1.0);
+        next_block();
+        break;
+      case 13:  // Move to top left (start)
+        MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+        next_block();
+        break;
+      case 14:  // Homing
         params.btn.follow = 1;
         next_block();
         break;
-      case 12:  // Wait for top left arrival
+      case 15:  // Wait for top left arrival
         if (dist2_to(0, 0) > 0.30f * 0.30f) break;
         next_block();
         break;
-      case 13:  // Wait for top right arrival
+      case 16:  // Wait for top right arrival
         if (dist2_to(0, 4) > 0.30f * 0.30f) break;
         next_block();
         break;
-      case 14:  // Wait for arrival
+      case 17:  // Wait for arrival
         if (dist2_to(0, 0) > 0.30f * 0.30f) break;
         WAIT(5.0);
         next_block();
         break;
-      case 15:  // Reset
+      case 18:  // Reset
         params.btn.record_clear = 1;
         experiment_state.block = 0;
         break;
@@ -875,6 +887,37 @@ void experiment_corridor_odo(void) {
     }
 }
 
+void experiment_corridor_snapshots(void) {
+  switch (experiment_state.block) {
+      case 0:  // Take snapshot (btn)
+        MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+        params.btn.record_snapshot_sequence = 1;
+        next_block();
+        break;
+      case 1:  // Take snapshot (wait)
+        WAIT(2.0);
+        next_block();
+        break;
+      case 2:  // Go to top
+        MOVE_TO_AND_WAIT(6, 0, 0.3, 1.0);
+        next_block();
+        break;
+      case 3:  // Homing
+        params.btn.follow = 1;
+        next_block();
+        break;
+      case 4:  // Wait for arrival
+        if (dist2_to(0, 0) > 0.30f * 0.30f) break;
+        WAIT(5.0);
+        next_block();
+        break;
+      case 5:  // Reset
+        params.btn.record_clear = 1;
+        experiment_state.block = 0;
+        break;
+    }
+}
+
 
 typedef void (*experiment_fn)(void);
 
@@ -890,6 +933,7 @@ experiment_fn experiment_periodic_fn[] = {
     experiment_corridor_odo,
     experiment_u_both,
     experiment_u_odo,
+    experiment_corridor_snapshots,
 };
 static const int NUM_EXPERIMENTS = sizeof(experiment_periodic_fn) / sizeof(experiment_periodic_fn[0]);
 
