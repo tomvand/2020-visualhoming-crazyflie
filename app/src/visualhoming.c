@@ -463,7 +463,7 @@ static void experiment_single_snapshot_periodic(void) {
       next_block();
       break;
     case 5:  // Homing (wait)
-      WAIT(10.0)
+      WAIT(20.0)
       log_point(start_pos + 1, 2);
       params.btn.idle = 1;
       start_pos++;
@@ -857,34 +857,35 @@ void experiment_corridor_both(void) {
 }
 
 void experiment_corridor_odo(void) {
+  static int run = 0;
+
   switch (experiment_state.block) {
-      case 0:  // Take snapshot (btn)
-        MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
-        params.btn.record_odometry = 1;
-        next_block();
-        break;
-      case 1:  // Take snapshot (wait)
-        WAIT(2.0);
-        next_block();
-        break;
-      case 2:  // Go to top
-        MOVE_TO_AND_WAIT(6, 0, 0.3, 1.0);
-        next_block();
-        break;
-      case 3:  // Homing
-        params.btn.follow = 1;
-        next_block();
-        break;
-      case 4:  // Wait for arrival
-        if (dist2_to(0, 0) > 0.30f * 0.30f) break;
-        WAIT(5.0);
-        next_block();
-        break;
-      case 5:  // Reset
-        params.btn.record_clear = 1;
-        experiment_state.block = 0;
-        break;
+  case 0:  // Reset counter
+    run = 0;
+    next_block();
+    break;
+  case 1:  // Stay at 0
+    MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+    next_block();
+    break;
+  case 2:  // Move to end
+    MOVE_TO_AND_WAIT(6, 0, 0.3, 1.0);
+    next_block();
+    break;
+  case 3:  // Move to start
+    MOVE_TO_AND_WAIT(0, 0, 0.3, 0.0);
+    next_block();
+    break;
+  case 4:  // Reset or land
+    if (run < 10) {
+      run++;
+      next_block();
+      experiment_state.block = 1;
+    } else {
+      params.sw.enable = 0;  // Land
     }
+    break;
+  }
 }
 
 void experiment_corridor_snapshots(void) {
