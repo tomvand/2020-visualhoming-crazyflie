@@ -826,34 +826,52 @@ void experiment_u_odo(void) {
 }
 
 void experiment_corridor_both(void) {
+  static int run = 0;
+
   switch (experiment_state.block) {
-      case 0:  // Take snapshot (btn)
-        MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
-        params.btn.record_both_sequence = 1;
-        next_block();
-        break;
-      case 1:  // Take snapshot (wait)
-        WAIT(2.0);
-        next_block();
-        break;
-      case 2:  // Go to top
-        MOVE_TO_AND_WAIT(6, 0, 0.3, 1.0);
-        next_block();
-        break;
-      case 3:  // Homing
-        params.btn.follow = 1;
-        next_block();
-        break;
-      case 4:  // Wait for arrival
-        if (dist2_to(0, 0) > 0.30f * 0.30f) break;
-        WAIT(5.0);
-        next_block();
-        break;
-      case 5:  // Reset
-        params.btn.record_clear = 1;
-        experiment_state.block = 0;
-        break;
+  case 0:  // Reset counter
+    run = 0;
+    next_block();
+    break;
+  case 1:  // Take single snapshot at 0
+    MOVE_TO_AND_WAIT(0, 0, 0.3, 2.0)
+    params.btn.record_snapshot_single = 1;
+    next_block();
+    break;
+  case 2:  // Move to end
+    MOVE_TO_AND_WAIT(6, 0, 0.3, 1.0);
+    next_block();
+    break;
+  case 3:  // Move to start
+    MOVE_TO_AND_WAIT(0, 0, 0.3, 0.0);
+    next_block();
+    break;
+  case 4:  // Home to snapshot
+    params.btn.follow = 1;
+    WAIT(4.0);
+    next_block();
+    break;
+  case 5:  // Re-align INS
+    float de = log_buffer.ins_correction.to.e
+        - log_buffer.ins_correction.from.e;
+    float dn = log_buffer.ins_correction.to.n
+        - log_buffer.ins_correction.from.n;
+    float dpsi = log_buffer.ins_correction.psi_to
+        - log_buffer.ins_correction.psi_from;
+    visualhoming_position_update(dn, de);
+    visualhoming_heading_update(dpsi);
+    next_block();
+    break;
+  case 6:  // Reset or land
+    if (run < 9) {
+      run++;
+      next_block();
+      experiment_state.block = 2;
+    } else {
+      params.sw.enable = 0;  // Land
     }
+    break;
+  }
 }
 
 void experiment_corridor_odo(void) {
@@ -877,7 +895,7 @@ void experiment_corridor_odo(void) {
     next_block();
     break;
   case 4:  // Reset or land
-    if (run < 10) {
+    if (run < 9) {
       run++;
       next_block();
       experiment_state.block = 1;
