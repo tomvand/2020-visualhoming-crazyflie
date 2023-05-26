@@ -836,6 +836,7 @@ void experiment_corridor_both(void) {
   case 1:  // Take single snapshot at 0
     MOVE_TO_AND_WAIT(0, 0, 0.3, 2.0)
     params.btn.record_snapshot_single = 1;
+    log_point(0, 1);
     next_block();
     break;
   case 2:  // Move to end
@@ -849,6 +850,8 @@ void experiment_corridor_both(void) {
   case 4:  // Home to snapshot
     params.btn.follow = 1;
     WAIT(4.0);
+    params.btn.idle = 1;
+    log_point(1, run+1);
     next_block();
     break;
   case 5:  // Re-align INS
@@ -884,6 +887,7 @@ void experiment_corridor_odo(void) {
     break;
   case 1:  // Stay at 0
     MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+    log_point(run, 1);
     next_block();
     break;
   case 2:  // Move to end
