@@ -41,7 +41,7 @@ class Client(tk.Tk):
 
         # configure grid
         rows = 2
-        num_experiments = 12
+        num_experiments = 16
         experiment_cols = int(num_experiments / 2 + 0.999)
         columns = 3 + experiment_cols
         grid_size = 100
@@ -100,6 +100,12 @@ class Client(tk.Tk):
                 label = 'U\nodo'
             elif i == 11:
                 label = "Corr\nss's"
+            elif i == 12:
+                label = 'S\nodo'
+            elif i == 13:
+                label = 'S\nboth'
+            elif i == 14:
+                label = "S\nss's"
             self.experiment_button = tk.Button(self, text=label)
             self.experiment_button['command'] = lambda x=i: self.experiment_btn_clicked(x)
             self.experiment_button.grid(row=i // experiment_cols, column=3 + (i % experiment_cols), sticky=tk.NSEW)
