@@ -1049,6 +1049,230 @@ void experiment_s_odo(void) {
   }
 }
 
+void experiment_s_both(void) {
+  const int repeats = params.conf.repeats;
+  static int repeat = -1;
+
+  switch (experiment_state.block) {
+    // High-level blocks
+    case 0:  // Decide next block
+      repeat++;
+      next_block();
+      if (repeat < repeats) {
+        // Recording
+        params.btn.record_both_sequence = 1;
+        if (repeat % 2 == 0) {
+          // Outbound
+          experiment_state.block = 10;
+        } else {
+          // Inbound
+          experiment_state.block = 20;
+        }
+      } else if (repeat < 2 * repeats) {
+        // Following
+        params.btn.follow = 1;
+        if (repeat % 2 == 0) {
+          // Outbound
+          experiment_state.block = 30;
+        } else {
+          // Inbound
+          experiment_state.block = 40;
+        }
+      } else {
+        params.sw.enable = 0; // Trigger landing
+      }
+      break;
+
+    // Recording, outbound trajectory
+    case 10:  // Start top left
+      MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+      next_block();
+      break;
+    case 11:  // Go down
+      MOVE_TO_AND_WAIT(-5, 0, 0.3, 1.0);
+      next_block();
+      break;
+    case 12:  // Go right
+      MOVE_TO_AND_WAIT(-5, 2.5, 0.3, 1.0);
+      next_block();
+      break;
+    case 13:  // Go up
+      MOVE_TO_AND_WAIT(0, 2.5, 0.3, 1.0);
+      next_block();
+      break;
+    case 14:  // Go right
+      MOVE_TO_AND_WAIT(0, 5, 0.3, 1.0);
+      next_block();
+      break;
+    case 15:  // Go down
+      MOVE_TO_AND_WAIT(-5, 5, 0.3, 1.0);
+      next_block();
+      break;
+    case 16:  // Return
+      next_block();
+      experiment_state.block = 0;
+      break;
+
+    // Recording, inbound trajectory
+    case 20:  // Start bottom right
+      MOVE_TO_AND_WAIT(-5, 5, 0.3, 1.0);
+      next_block();
+      break;
+    case 21:  // Go up
+      MOVE_TO_AND_WAIT(0, 5, 0.3, 1.0);
+      next_block();
+      break;
+    case 22:  // Go left
+      MOVE_TO_AND_WAIT(0, 2.5, 0.3, 1.0);
+      next_block();
+      break;
+    case 23:  // Go down
+      MOVE_TO_AND_WAIT(-5, 2.5, 0.3, 1.0);
+      next_block();
+      break;
+    case 24:  // Go left
+      MOVE_TO_AND_WAIT(-5, 0, 0.3, 1.0);
+      next_block();
+      break;
+    case 25:  // Go up
+      MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+      next_block();
+      break;
+    case 26:  // Return
+      next_block();
+      experiment_state.block = 0;
+      break;
+
+    // Following, outbound trajectory
+    case 30:  // Wait for arrival bottom right
+      if (dist2_to(-5, 5) > 0.50f * 0.50f) break;
+      WAIT(5.0);
+      next_block();
+      experiment_state.block = 0;
+      break;
+
+    // Following, inbound trajectory
+    case 40:  // Wait for arrival top left
+      if (dist2_to(0, 0) > 0.50f * 0.50f) break;
+      WAIT(5.0);
+      next_block();
+      experiment_state.block = 0;
+      break;
+  }
+}
+
+void experiment_s_snapshots(void) {
+  const int repeats = params.conf.repeats;
+  static int repeat = -1;
+
+  switch (experiment_state.block) {
+    // High-level blocks
+    case 0:  // Decide next block
+      repeat++;
+      next_block();
+      if (repeat < repeats) {
+        // Recording
+        params.btn.record_snapshot_sequence = 1;
+        if (repeat % 2 == 0) {
+          // Outbound
+          experiment_state.block = 10;
+        } else {
+          // Inbound
+          experiment_state.block = 20;
+        }
+      } else if (repeat < 2 * repeats) {
+        // Following
+        params.btn.follow = 1;
+        if (repeat % 2 == 0) {
+          // Outbound
+          experiment_state.block = 30;
+        } else {
+          // Inbound
+          experiment_state.block = 40;
+        }
+      } else {
+        params.sw.enable = 0; // Trigger landing
+      }
+      break;
+
+    // Recording, outbound trajectory
+    case 10:  // Start top left
+      MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+      next_block();
+      break;
+    case 11:  // Go down
+      MOVE_TO_AND_WAIT(-5, 0, 0.3, 1.0);
+      next_block();
+      break;
+    case 12:  // Go right
+      MOVE_TO_AND_WAIT(-5, 2.5, 0.3, 1.0);
+      next_block();
+      break;
+    case 13:  // Go up
+      MOVE_TO_AND_WAIT(0, 2.5, 0.3, 1.0);
+      next_block();
+      break;
+    case 14:  // Go right
+      MOVE_TO_AND_WAIT(0, 5, 0.3, 1.0);
+      next_block();
+      break;
+    case 15:  // Go down
+      MOVE_TO_AND_WAIT(-5, 5, 0.3, 1.0);
+      next_block();
+      break;
+    case 16:  // Return
+      next_block();
+      experiment_state.block = 0;
+      break;
+
+    // Recording, inbound trajectory
+    case 20:  // Start bottom right
+      MOVE_TO_AND_WAIT(-5, 5, 0.3, 1.0);
+      next_block();
+      break;
+    case 21:  // Go up
+      MOVE_TO_AND_WAIT(0, 5, 0.3, 1.0);
+      next_block();
+      break;
+    case 22:  // Go left
+      MOVE_TO_AND_WAIT(0, 2.5, 0.3, 1.0);
+      next_block();
+      break;
+    case 23:  // Go down
+      MOVE_TO_AND_WAIT(-5, 2.5, 0.3, 1.0);
+      next_block();
+      break;
+    case 24:  // Go left
+      MOVE_TO_AND_WAIT(-5, 0, 0.3, 1.0);
+      next_block();
+      break;
+    case 25:  // Go up
+      MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+      next_block();
+      break;
+    case 26:  // Return
+      next_block();
+      experiment_state.block = 0;
+      break;
+
+    // Following, outbound trajectory
+    case 30:  // Wait for arrival bottom right
+      if (dist2_to(-5, 5) > 0.50f * 0.50f) break;
+      WAIT(5.0);
+      next_block();
+      experiment_state.block = 0;
+      break;
+
+    // Following, inbound trajectory
+    case 40:  // Wait for arrival top left
+      if (dist2_to(0, 0) > 0.50f * 0.50f) break;
+      WAIT(5.0);
+      next_block();
+      experiment_state.block = 0;
+      break;
+  }
+}
+
 
 typedef void (*experiment_fn)(void);
 
@@ -1065,6 +1289,9 @@ experiment_fn experiment_periodic_fn[] = {
     experiment_u_both,
     experiment_u_odo,
     experiment_corridor_snapshots,
+    experiment_s_odo,
+    experiment_s_both,
+    experiment_s_snapshots,
 };
 static const int NUM_EXPERIMENTS = sizeof(experiment_periodic_fn) / sizeof(experiment_periodic_fn[0]);
 
