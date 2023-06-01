@@ -122,6 +122,7 @@ static struct params_t {
     float p_gain;
     float yaw_rad_sd;
     float pos_m_sd;
+    uint8_t repeats;
   } conf;
   struct {
     uint8_t force_yaw;
@@ -151,6 +152,7 @@ PARAM_ADD(PARAM_FLOAT, conf_vref, &params.conf.vref)
 PARAM_ADD(PARAM_FLOAT, conf_p_gain, &params.conf.p_gain)
 PARAM_ADD(PARAM_FLOAT, conf_yaw_rad_sd, &params.conf.yaw_rad_sd)
 PARAM_ADD(PARAM_FLOAT, conf_pos_m_sd, &params.conf.pos_m_sd)
+PARAM_ADD(PARAM_UINT8, conf_repeats, &params.conf.repeats)
 PARAM_ADD(PARAM_UINT8, db_yaw, &params.debug.force_yaw)
 PARAM_ADD(PARAM_UINT8, db_pos, &params.debug.force_pos)
 PARAM_ADD(PARAM_UINT8, db_dryrun, &params.debug.dry_run)
@@ -941,6 +943,112 @@ void experiment_corridor_snapshots(void) {
     }
 }
 
+void experiment_s_odo(void) {
+  const int repeats = params.conf.repeats;
+  static int repeat = -1;
+
+  switch (experiment_state.block) {
+    // High-level blocks
+    case 0:  // Decide next block
+      repeat++;
+      next_block();
+      if (repeat < repeats) {
+        // Recording
+        if (repeat % 2 == 0) {
+          // Outbound
+          experiment_state.block = 10;
+        } else {
+          // Inbound
+          experiment_state.block = 20;
+        }
+      } else if (repeat < 2 * repeats) {
+        // Following
+        if (repeat % 2 == 0) {
+          // Outbound
+          experiment_state.block = 30;
+        } else {
+          // Inbound
+          experiment_state.block = 40;
+        }
+      } else {
+        params.sw.enable = 0; // Trigger landing
+      }
+      break;
+
+    // Recording, outbound trajectory
+    case 10:  // Start top left
+      MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+      next_block();
+      break;
+    case 11:  // Go down
+      MOVE_TO_AND_WAIT(-5, 0, 0.3, 1.0);
+      next_block();
+      break;
+    case 12:  // Go right
+      MOVE_TO_AND_WAIT(-5, 2.5, 0.3, 1.0);
+      next_block();
+      break;
+    case 13:  // Go up
+      MOVE_TO_AND_WAIT(0, 2.5, 0.3, 1.0);
+      next_block();
+      break;
+    case 14:  // Go right
+      MOVE_TO_AND_WAIT(0, 5, 0.3, 1.0);
+      next_block();
+      break;
+    case 15:  // Go down
+      MOVE_TO_AND_WAIT(-5, 5, 0.3, 1.0);
+      next_block();
+      break;
+    case 16:  // Return
+      next_block();
+      experiment_state.block = 0;
+      break;
+
+    // Recording, inbound trajectory
+    case 20:  // Start bottom right
+      MOVE_TO_AND_WAIT(-5, 5, 0.3, 1.0);
+      next_block();
+      break;
+    case 21:  // Go up
+      MOVE_TO_AND_WAIT(0, 5, 0.3, 1.0);
+      next_block();
+      break;
+    case 22:  // Go left
+      MOVE_TO_AND_WAIT(0, 2.5, 0.3, 1.0);
+      next_block();
+      break;
+    case 23:  // Go down
+      MOVE_TO_AND_WAIT(-5, 2.5, 0.3, 1.0);
+      next_block();
+      break;
+    case 24:  // Go left
+      MOVE_TO_AND_WAIT(-5, 0, 0.3, 1.0);
+      next_block();
+      break;
+    case 25:  // Go up
+      MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
+      next_block();
+      break;
+    case 26:  // Return
+      next_block();
+      experiment_state.block = 0;
+      break;
+
+    // Following, outbound trajectory
+    case 30:
+      next_block();
+      experiment_state.block = 10;
+      break;
+
+    // Following, inbound trajectory
+    case 40:
+      next_block();
+      experiment_state.block = 20;
+      break;
+  }
+}
+
 
 typedef void (*experiment_fn)(void);
 
@@ -987,6 +1095,7 @@ static void app_init(void) {
   params.conf.vref = VISUALHOMING_VREF;
   params.conf.yaw_rad_sd = VISUALHOMING_YAW_RAD_SD;
   params.conf.pos_m_sd = VISUALHOMING_POS_M_SD;
+  params.conf.repeats = 1;
 
   varid.pos_x = logGetVarId("stateEstimate", "x");
   varid.pos_y = logGetVarId("stateEstimate", "y");
