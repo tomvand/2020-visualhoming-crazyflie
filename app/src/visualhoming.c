@@ -373,57 +373,6 @@ static void experiment_idle_periodic(void) {
   // Do nothing
 }
 
-static struct pos3f_t fake_vector(float n_home, float e_home) {
-  // Calculate fake homing vector
-  struct pos3f_t rel_pos = {
-      .n = state.pos.n - n_home,
-      .e = state.pos.e - e_home
-  };
-  struct pos3f_t vector = {
-      .n = -0.2f * rel_pos.n,
-      .e = 0.2f * rel_pos.n - 0.5f * rel_pos.e,
-  };
-  float norm = sqrtf(vector.n * vector.n + vector.e * vector.e);
-  float scale = norm < 0.2f ? 1.0f : 0.2f / norm;
-  vector.n *= scale;
-  vector.e *= scale;
-  // Transform to global coordinates
-  struct pos3f_t to = {
-      .n = state.pos.n + vector.n,
-      .e = state.pos.e + vector.e,
-  };
-  return to;
-}
-
-static void experiment_fake_homing_periodic(void) {
-  switch (experiment_state.block) {
-    case 0:  // Go to homing position
-      visualhoming_set_goal(0, 0);
-      if (dist2_to(0, 0) > 0.30f * 0.30f) break;
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 1:  // Go to start position
-      visualhoming_set_goal(0, -2);
-      if (dist2_to(0, -2) > 0.30f * 0.30f) break;
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 2:  // Fake homing
-      struct pos3f_t to = fake_vector(0, 0);
-      visualhoming_set_goal(to.n, to.e);
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 10.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 3:  // Reset
-      experiment_state.block = 0;
-      break;
-    default:
-      break;
-  }
-}
-
-
 #define MOVE_TO_AND_WAIT(_n, _e, _radius, _time) \
   visualhoming_set_goal((_n), (_e)); \
   if (dist2_to((_n), (_e)) > (float)(_radius) * (float)(_radius)) break; \
@@ -471,122 +420,6 @@ static void experiment_single_snapshot_periodic(void) {
       start_pos++;
       next_block();
       experiment_state.block = 3;
-      break;
-    default:
-      break;
-  }
-}
-
-static void experiment_odometry_periodic(void) {
-  switch (experiment_state.block) {
-    case 0:  // Go to homing position
-      visualhoming_set_goal(0, 0);
-      if (dist2_to(0, 0) > 0.30f * 0.30f) break;
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 1:  // Start recording
-      params.btn.record_odometry = 1;
-      next_block();
-      break;
-    case 2:  // Wait for recording to start
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 3:  // Go to position 1
-      visualhoming_set_goal(0, -2);
-      if (dist2_to(0, -2) > 0.30f * 0.30f) break;
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 4:  // Go to position 2
-      visualhoming_set_goal(2, -2);
-      if (dist2_to(2, -2) > 0.30f * 0.30f) break;
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 5:  // Go to position 3
-      visualhoming_set_goal(2, 2);
-      if (dist2_to(2, 2) > 0.30f * 0.30f) break;
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 6:  // Go to position 4
-      visualhoming_set_goal(0, 2);
-      if (dist2_to(0, 2) > 0.30f * 0.30f) break;
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 7:  // Homing
-      params.btn.follow = 1;
-      next_block();
-      break;
-    case 8:  // Wait for arrival
-      if (dist2_to(0, 0) > 0.30f * 0.30f) break;
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 9:  // Reset
-      params.btn.record_clear = 1;
-      experiment_state.block = 0;
-      break;
-    default:
-      break;
-  }
-}
-
-static void experiment_both_sequence_periodic(void) {
-  switch (experiment_state.block) {
-    case 0:  // Go to homing position
-      visualhoming_set_goal(0, 0);
-      if (dist2_to(0, 0) > 0.30f * 0.30f) break;
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 1:  // Start recording
-      params.btn.record_both_sequence = 1;
-      next_block();
-      break;
-    case 2:  // Wait for recording to start
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 3:  // Go to position 1
-      visualhoming_set_goal(0, -2);
-      if (dist2_to(0, -2) > 0.30f * 0.30f) break;
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 4:  // Go to position 2
-      visualhoming_set_goal(2, -2);
-      if (dist2_to(2, -2) > 0.30f * 0.30f) break;
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 5:  // Go to position 3
-      visualhoming_set_goal(2, 2);
-      if (dist2_to(2, 2) > 0.30f * 0.30f) break;
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 6:  // Go to position 4
-      visualhoming_set_goal(0, 2);
-      if (dist2_to(0, 2) > 0.30f * 0.30f) break;
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 7:  // Homing
-      params.btn.follow = 1;
-      next_block();
-      break;
-    case 8:  // Wait for arrival
-      if (dist2_to(0, 0) > 0.30f * 0.30f) break;
-      if (experiment_state.timer == 0) experiment_state.timer = usecTimestamp() + 1.0e6;
-      if (usecTimestamp() > experiment_state.timer) next_block();
-      break;
-    case 9:  // Reset
-      params.btn.record_clear = 1;
-      experiment_state.block = 0;
       break;
     default:
       break;
@@ -644,46 +477,7 @@ static void experiment_snapshot_distance_periodic(void) {
   }
 }
 
-void experiment_ins_correction_yaw(void) {
-  switch (experiment_state.block) {
-    case 0:  // Take snapshot (btn)
-      MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
-      params.btn.record_snapshot_single = 1;
-      next_block();
-      break;
-    case 1:  // Take snapshot (wait), follow (btn)
-      WAIT(2.0);
-      params.btn.follow = 1;
-      next_block();
-      break;
-    case 2:  // Follow (wait)
-      WAIT(2.0);
-      next_block();
-      break;
-    case 3:  // Incorrectly update heading
-      visualhoming_heading_update(-0.80f);  // DRONE SHOULD YAW RIGHT!
-      next_block();
-      break;
-    case 4:  // Wait
-      WAIT(5.0);
-      next_block();
-      break;
-    case 5:  // Re-align INS
-      // Note: a vector to turn right means the true yaw is more to the left, hence the '-' sign.
-      visualhoming_heading_update(-log_buffer.vector.delta_psi);  // DRONE SHOULD RESTORE HEADING!
-      next_block();
-      break;
-    case 6:  // Wait
-      WAIT(5.0);
-      next_block();
-      experiment_state.block = 3;
-      break;
-    default:
-      break;
-  }
-}
-
-void experiment_u_both(void) {
+static void experiment_u_both(void) {
   switch (experiment_state.block) {
       case 0:  // Take snapshot (btn)
         MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
@@ -766,7 +560,7 @@ void experiment_u_both(void) {
     }
 }
 
-void experiment_u_odo(void) {
+static void experiment_u_odo(void) {
   switch (experiment_state.block) {
       case 0:  // Take snapshot (btn)
         MOVE_TO_AND_WAIT(0, 0, 0.3, 3.0);
@@ -827,7 +621,7 @@ void experiment_u_odo(void) {
     }
 }
 
-void experiment_corridor_both(void) {
+static void experiment_corridor_both(void) {
   static int run = 0;
 
   switch (experiment_state.block) {
@@ -879,7 +673,7 @@ void experiment_corridor_both(void) {
   }
 }
 
-void experiment_corridor_odo(void) {
+static void experiment_corridor_odo(void) {
   static int run = 0;
 
   switch (experiment_state.block) {
@@ -912,7 +706,7 @@ void experiment_corridor_odo(void) {
   }
 }
 
-void experiment_corridor_snapshots(void) {
+static void experiment_corridor_snapshots(void) {
   switch (experiment_state.block) {
       case 0:  // Take snapshot (btn)
         MOVE_TO_AND_WAIT(0, 0, 0.3, 1.0);
@@ -943,7 +737,7 @@ void experiment_corridor_snapshots(void) {
     }
 }
 
-void experiment_s_odo(void) {
+static void experiment_s_odo(void) {
   const int repeats = params.conf.repeats;
   static int repeat = -1;
 
@@ -1049,7 +843,7 @@ void experiment_s_odo(void) {
   }
 }
 
-void experiment_s_both(void) {
+static void experiment_s_both(void) {
   const int repeats = params.conf.repeats;
   static int repeat = -1;
 
@@ -1161,7 +955,7 @@ void experiment_s_both(void) {
   }
 }
 
-void experiment_s_snapshots(void) {
+static void experiment_s_snapshots(void) {
   const int repeats = params.conf.repeats;
   static int repeat = -1;
 
@@ -1278,12 +1072,8 @@ typedef void (*experiment_fn)(void);
 
 experiment_fn experiment_periodic_fn[] = {
     experiment_idle_periodic,
-    experiment_fake_homing_periodic,
     experiment_single_snapshot_periodic,
-    experiment_odometry_periodic,
-    experiment_both_sequence_periodic,
     experiment_snapshot_distance_periodic,
-    experiment_ins_correction_yaw,
     experiment_corridor_both,
     experiment_corridor_odo,
     experiment_u_both,
