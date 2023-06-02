@@ -41,7 +41,7 @@ class Client(tk.Tk):
 
         # configure grid
         rows = 2
-        num_experiments = 16
+        num_experiments = 12
         experiment_cols = int(num_experiments / 2 + 0.999)
         columns = 3 + experiment_cols
         grid_size = 100
@@ -79,32 +79,24 @@ class Client(tk.Tk):
             if i == 0:
                 label = 'Idle'
             elif i == 1:
-                label = 'Fake\nhome'
-            elif i == 2:
                 label = 'SS\nsingle'
-            elif i == 3:
-                label = 'Odo'
-            elif i == 4:
-                label = 'Both\nseq'
-            elif i == 5:
+            elif i == 2:
                 label = 'RMSE\nexp'
-            elif i == 6:
-                label = 'INS\nHDG'
-            elif i == 7:
+            elif i == 3:
                 label = 'Corr\nboth'
-            elif i == 8:
+            elif i == 4:
                 label = 'Corr\nodo'
-            elif i == 9:
+            elif i == 5:
                 label = 'U\nboth'
-            elif i == 10:
+            elif i == 6:
                 label = 'U\nodo'
-            elif i == 11:
+            elif i == 7:
                 label = "Corr\nss's"
-            elif i == 12:
+            elif i == 8:
                 label = 'S\nodo'
-            elif i == 13:
+            elif i == 9:
                 label = 'S\nboth'
-            elif i == 14:
+            elif i == 10:
                 label = "S\nss's"
             self.experiment_button = tk.Button(self, text=label)
             self.experiment_button['command'] = lambda x=i: self.experiment_btn_clicked(x)
